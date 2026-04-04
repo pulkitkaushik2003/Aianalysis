@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Insight Analytics - Transform Data into Decisions</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script> <!-- For better icons -->
+
+  <!-- Custom Animations and Styles -->
+  <style>
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 20px rgba(56, 189, 248, 0.5); }
+      50% { box-shadow: 0 0 40px rgba(56, 189, 248, 0.8); }
+    }
+
+    .animate-fadeUp {
+      animation: fadeUp 1s ease forwards;
+    }
+
+    .delay-1 { animation-delay: 0.3s; }
+    .delay-2 { animation-delay: 0.6s; }
+    .delay-3 { animation-delay: 0.9s; }
+    .delay-4 { animation-delay: 1.2s; }
+
+    .pulse-glow {
+      animation: pulseGlow 2s infinite;
+    }
+
+    .animate-word {
+      opacity: 0;
+      animation: fadeUp 1s ease forwards;
+    }
+
+    .delay-word-1 { animation-delay: 0.2s; }
+    .delay-word-2 { animation-delay: 0.4s; }
+    .delay-word-3 { animation-delay: 0.6s; }
+    .delay-word-4 { animation-delay: 0.8s; }
+    .delay-word-5 { animation-delay: 1.0s; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    .hero-bg {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    }
+
+    .service-card:hover {
+      transform: translateY(-10px) scale(1.05);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .project-card:hover img {
+      transform: scale(1.1);
+    }
+
+    .project-card img {
+      transition: transform 0.5s ease;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-white overflow-x-hidden">
+
+<!-- NAVBAR -->
+<nav class="flex justify-between items-center px-6 md:px-20 py-6 animate-fadeUp sticky top-0 bg-slate-950/90 backdrop-blur-md z-50">
+  <h1 class="text-2xl font-bold text-sky-400 flex items-center gap-2">
+    <i data-lucide="bar-chart-3" class="w-8 h-8"></i>
+    InsightAnalytics
+  </h1>
+
+  <ul class="hidden md:flex gap-10 text-gray-300">
+    <li class="hover:text-sky-400 transition cursor-pointer">Home</li>
+   <li class="transition">
+  <a href="/service" class="hover:text-sky-400 cursor-pointer">
+    Services
+  </a>
+</li>
+
+     <li class="hover:text-sky-400 transition">
+  <a href="/about" class="hover:text-sky-400 cursor-pointer">
+    About
+  </a>
+</li>
+    <li class="hover:text-sky-400 transition">
+  <a href="/contact" class="hover:text-sky-400 cursor-pointer">
+    Contact
+  </a>
+</li>
+
+  </ul>
+
+  <button class="bg-sky-400 text-black px-6 py-2 rounded-lg font-medium hover:bg-sky-300 hover:scale-105 transition pulse-glow">
+    <a href="/login" class="hover:text-sky-400 cursor-pointer">
+    Get Consultation
+  </a>
+    
+  </button>
+
+  <!-- Mobile Menu Toggle -->
+  <div class="md:hidden">
+    <button id="menu-toggle" class="text-gray-300 hover:text-white">
+      <i data-lucide="menu" class="w-6 h-6"></i>
+    </button>
+  </div>
+</nav>
+
+<!-- Mobile Menu -->
+<div id="mobile-menu" class="hidden md:hidden bg-slate-900 px-6 py-4">
+  <ul class="flex flex-col gap-4 text-gray-300">
+    <li class="hover:text-sky-400 transition cursor-pointer">Home</li>
+    <li class="transition">
+  <a href="/service" class="hover:text-sky-400 cursor-pointer">
+    Services
+  </a>
+</li>
+
+    <li class="hover:text-sky-400 transition cursor-pointer">About</li>
+    <li class="hover:text-sky-400 transition cursor-pointer">Contact</li>
+  </ul>
+</div>
+
+<!-- HERO -->
+<section class="hero-bg grid grid-cols-1 md:grid-cols-2 items-center px-6 md:px-20 py-16 md:py-28 gap-10 md:gap-20">
+  <div class="animate-fadeUp delay-1 text-center md:text-left">
+    <h1 class="text-4xl md:text-6xl font-extrabold leading-tight">
+      <span class="animate-word delay-word-1">We</span> <span class="animate-word delay-word-2">Transform</span><br>
+      <span class="animate-word delay-word-3 text-sky-400 bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">Data</span> <span class="animate-word delay-word-4">into</span> <span class="animate-word delay-word-5">Decisions</span>
+    </h1>
+
+    <p class="text-gray-400 mt-6 max-w-xl text-lg mx-auto md:mx-0">
+      Empowering enterprises with cutting-edge analytics, AI-driven insights, and data-driven strategies to unlock growth and innovation.
+    </p>
+
+    <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
+      <button class="bg-sky-400 text-black px-8 py-4 rounded-xl text-lg hover:bg-sky-300 hover:scale-105 transition pulse-glow">
+        Explore Our Work
+      </button>
+      <button class="border border-sky-400 text-sky-400 px-8 py-4 rounded-xl text-lg hover:bg-sky-400 hover:text-black transition">
+        Watch Demo
+      </button>
+    </div>
+  </div>
+
+  <div class="animate-fadeUp delay-2 flex justify-center">
+    <img 
+      src="https://images.unsplash.com/photo-1551288049-bebda4e38f71"
+      class="rounded-3xl shadow-2xl hover:scale-105 transition duration-500 w-full max-w-md"
+      alt="Analytics Dashboard"
+    >
+  </div>
+</section>
+
+<!-- SERVICES -->
+<section class="px-6 md:px-20 py-16 md:py-24 bg-slate-900">
+  <h2 class="text-3xl md:text-4xl font-bold text-center mb-12 md:mb-16 animate-fadeUp">What We Do</h2>
+  <p class="text-gray-400 text-center mb-12 max-w-2xl mx-auto">Our expert team delivers tailored solutions to turn your data into actionable strategies.</p>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-10">
+    <div class="service-card bg-slate-950 p-8 rounded-2xl text-center transition-all duration-300">
+      <i data-lucide="database" class="w-12 h-12 text-sky-400 mx-auto"></i>
+      <h3 class="mt-4 font-semibold text-xl">Data Analysis</h3>
+      <p class="text-gray-400 text-sm mt-3">Extract actionable insights from complex datasets using advanced techniques.</p>
+    </div>
+
+    <div class="service-card bg-slate-950 p-8 rounded-2xl text-center transition-all duration-300">
+      <i data-lucide="bar-chart" class="w-12 h-12 text-sky-400 mx-auto"></i>
+      <h3 class="mt-4 font-semibold text-xl">BI Dashboards</h3>
+      <p class="text-gray-400 text-sm mt-3">Interactive Power BI & Tableau visualizations for real-time decision-making.</p>
+    </div>
+
+    <div class="service-card bg-slate-950 p-8 rounded-2xl text-center transition-all duration-300">
+      <i data-lucide="brain" class="w-12 h-12 text-sky-400 mx-auto"></i>
+      <h3 class="mt-4 font-semibold text-xl">Predictive Analytics</h3>
+      <p class="text-gray-400 text-sm mt-3">AI-powered forecasting and machine learning models for future insights.</p>
+    </div>
+
+    <div class="service-card bg-slate-950 p-8 rounded-2xl text-center transition-all duration-300">
+      <i data-lucide="target" class="w-12 h-12 text-sky-400 mx-auto"></i>
+      <h3 class="mt-4 font-semibold text-xl">Business Strategy</h3>
+      <p class="text-gray-400 text-sm mt-3">Data-driven strategies to optimize operations and drive growth.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PROJECTS -->
+<section class="px-6 md:px-20 py-16 md:py-28">
+  <h2 class="text-3xl md:text-4xl font-bold mb-12 md:mb-20 text-center animate-fadeUp">
+    Featured Projects
+  </h2>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
+    <!-- CARD 1 -->
+    <div class="project-card bg-slate-900 rounded-2xl overflow-hidden hover:scale-105 transition duration-500 shadow-lg">
+      <div class="overflow-hidden">
+        <img src="https://images.unsplash.com/photo-1543286386-713bdd548da4" class="w-full h-48 object-cover">
+      </div>
+      <div class="p-6">
+        <h3 class="text-xl font-semibold">Retail Sales Intelligence</h3>
+        <p class="text-gray-400 mt-2 text-sm">
+          Enterprise Power BI dashboard for 120+ retail stores, enabling real-time sales tracking and inventory management.
+        </p>
+        <p class="text-sky-400 mt-4 text-sm font-medium">Revenue Growth: +18%</p>
+      </div>
+    </div>
+
+    <!-- CARD 2 -->
+    <div class="project-card bg-slate-900 rounded-2xl overflow-hidden hover:scale-105 transition duration-500 shadow-lg">
+  <div class="overflow-hidden h-48">
+  <img 
+    src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQu8txUyg6QmRWJ40XzbYuOKAxggTQd_FcQzA&s"
+    class="w-full h-full object-cover block"
+    alt="Customer Churn"
+  >
+</div>
+
+  <div class="p-6">
+    <h3 class="text-xl font-semibold text-white">Customer Churn Prediction</h3>
+    <p class="text-gray-400 mt-2 text-sm">
+      Machine learning solution for subscription-based business, predicting churn with 95% accuracy.
+    </p>
+    <p class="text-sky-400 mt-4 text-sm font-medium">Churn Reduced: 25%</p>
+  </div>
+</div>
+
+
+    <!-- CARD 3 -->
+    <div class="project-card bg-slate-900 rounded-2xl overflow-hidden hover:scale-105 transition duration-500 shadow-lg">
+      <div class="overflow-hidden">
+        <img src="https://images.unsplash.com/photo-1556155092-8707de31f9c4" class="w-full h-48 object-cover">
+      </div>
+      <div class="p-6">
+        <h3 class="text-xl font-semibold">Supply Chain Optimization</h3>
+        <p class="text-gray-400 mt-2 text-sm">
+          Advanced analytics for inventory and logistics, reducing costs through predictive modeling.
+        </p>
+        <p class="text-sky-400 mt-4 text-sm font-medium">$1.2M Saved Annually</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="px-6 md:px-20 py-16 md:py-24 bg-slate-900">
+  <h2 class="text-3xl md:text-4xl font-bold text-center mb-12 animate-fadeUp">What Our Clients Say</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+    <div class="bg-slate-950 p-8 rounded-2xl animate-fadeUp delay-1">
+      <p class="text-gray-400 italic">"Insight Analytics transformed our data chaos into clear strategies. Their dashboards are game-changers!"</p>
+      <p class="text-sky-400 mt-4 font-semibold">- Sarah Johnson, CEO, RetailCorp</p>
+    </div>
+    <div class="bg-slate-950 p-8 rounded-2xl animate-fadeUp delay-2">
+      <p class="text-gray-400 italic">"Their predictive models helped us reduce churn by 25%. Highly recommend their expertise."</p>
+      <p class="text-sky-400 mt-4 font-semibold">- Mike Chen, CTO, SubService Inc.</p>
+    </div>
+  </div>
+</section>
+
+<!-- METRICS -->
+<section class="bg-slate-900 py-16 md:py-20">
+  <div class="flex flex-col md:flex-row justify-around text-center animate-fadeUp gap-8">
+    <div>
+      <h3 class="text-4xl md:text-5xl font-bold text-sky-400">50+</h3>
+      <p class="text-gray-400 mt-2">Projects Delivered</p>
+    </div>
+    <div>
+      <h3 class="text-4xl md:text-5xl font-bold text-sky-400">30+</h3>
+      <p class="text-gray-400 mt-2">Enterprise Clients</p>
+    </div>
+    <div>
+      <h3 class="text-4xl md:text-5xl font-bold text-sky-400">99%</h3>
+      <p class="text-gray-400 mt-2">Client Satisfaction</p>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="bg-slate-950 py-12 px-6 md:px-20 border-t border-slate-800">
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+    <div>
+      <h3 class="text-xl font-bold text-sky-400 mb-4">InsightAnalytics</h3>
+      <p class="text-gray-400">Transforming data into decisions for a smarter future.</p>
+    </div>
+    <div>
+      <h4 class="font-semibold mb-4">Services</h4>
+      <ul class="text-gray-400 space-y-2">
+        <li>Data Analysis</li>
+        <li>BI Dashboards</li>
+        <li>Predictive Analytics</li>
+        <li>Business Strategy</li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="font-semibold mb-4">Company</h4>
+      <ul class="text-gray-400 space-y-2">
+        <li>About Us</li>
+        <li>Careers</li>
+        <li>Blog</li>
+        <li>Contact</li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="font-semibold mb-4">Connect</h4>
+      <div class="flex gap-4">
+        <i data-lucide="linkedin" class="w-6 h-6 text-gray-400 hover:text-sky-400 cursor-pointer"></i>
+        <i data-lucide="twitter" class="w-6 h-6 text-gray-400 hover:text-sky-400 cursor-pointer"></i>
+        <i data-lucide="mail" class="w-6 h-6 text-gray-400 hover:text-sky-400 cursor-pointer"></i>
+      </div>
+    </div>
+  </div>
+  <div class="mt-8 pt-8 border-t border-slate-800 text-center text-gray-400">
+    <p>&copy; 2023 Insight Analytics. All rights reserved.</p>
+  </div>
+</footer>
+
+<script>
+  // Initialize Lucide icons
+  lucide.createIcons();
+
+  // Mobile menu toggle
+  const menuToggle = document.getElementById('menu-toggle');
+  const mobileMenu = document.getElementById('mobile-menu');
+  menuToggle.addEventListener('click', () => {
+    mobileMenu.classList.toggle('hidden');
+  });
+
+  // Smooth scrolling for nav links (optional enhancement)
+  document.querySelectorAll('nav ul li').forEach(item => {
+    item.addEventListener('click', () => {
+      const section = item.textContent.toLowerCase();
+      const element = document.querySelector(`.${section}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+  });
+</script>
+
+</body>
+</html>
