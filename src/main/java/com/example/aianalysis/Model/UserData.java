@@ -22,4 +22,7 @@ public class UserData {
     private String email;
     private String contact;
     private String password;
+    // Password reset token and expiry (epoch millis)
+    private String resetToken;
+    private Long resetTokenExpiry;
 }

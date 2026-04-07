@@ -4,6 +4,7 @@ import com.example.aianalysis.Model.Contact;
 import com.example.aianalysis.Model.UploadedDataset;
 import com.example.aianalysis.Model.UserData;
 import com.example.aianalysis.Repo.AiContactUs;
+import com.example.aianalysis.Repo.AianalysisRepo;
 import com.example.aianalysis.service.AdvancedStatsAssistantService;
 import com.example.aianalysis.service.AiUserDataService;
 import com.example.aianalysis.service.DataCleaningService;
@@ -76,6 +77,9 @@ public class Aicontroller {
     private static final int  CHART_STREAM_CHUNK         = 5000;
 
     @Autowired private AiUserDataService              userService;
+    @Autowired private AianalysisRepo                 userRepo;
+    @Autowired private com.example.aianalysis.service.PasswordResetService passwordResetService;
+    @Autowired private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
     @Autowired private AiContactUs                   contactRepo;
     @Autowired private FileParserService             fileParserService;
     @Autowired private DataCleaningService           dataCleaningService;
@@ -92,6 +96,75 @@ public class Aicontroller {
 
     @GetMapping("/login")
     public String login() { return "login"; }
+
+    @GetMapping("/forgot-password")
+    public String forgotPassword(Model model) {
+        model.addAttribute("email", "");
+        return "forgot-password";
+    }
+
+    @PostMapping("/forgot-password")
+    public String handleForgotPassword(@RequestParam("email") String email,
+                                       RedirectAttributes redirectAttributes,
+                                       jakarta.servlet.http.HttpServletRequest request) {
+
+        if (email == null || email.isBlank()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Please enter your email.");
+            return "redirect:/forgot-password";
+        }
+
+        var result = passwordResetService.createAndSendToken(email, request);
+
+        if (result.mailSent()) {
+    redirectAttributes.addFlashAttribute("successMessage", "Reset link sent to your email.");
+    return "redirect:/login";
+} else {
+    // Security ke liye same message (email exist kare ya nahi)
+    redirectAttributes.addFlashAttribute("successMessage",
+        "If the email exists, a reset link has been sent.");
+    return "redirect:/forgot-password";
+}
+    }
+
+    @GetMapping("/reset-password")
+    public String resetPasswordForm(@RequestParam(value = "token", required = false) String token,
+                                    Model model,
+                                    RedirectAttributes redirectAttributes) {
+        if (token == null || token.isBlank()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Invalid or expired token.");
+            return "redirect:/login";
+        }
+
+        var userOpt = passwordResetService.validateToken(token);
+        if (userOpt.isEmpty()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Invalid or expired token.");
+            return "redirect:/login";
+        }
+
+        model.addAttribute("token", token);
+        return "reset-password";
+    }
+
+    @PostMapping("/reset-password")
+    public String handleResetPassword(@RequestParam("token") String token,
+                                      @RequestParam("password") String password,
+                                      RedirectAttributes redirectAttributes) {
+
+        var userOpt = passwordResetService.validateToken(token);
+        if (userOpt.isEmpty()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Invalid or expired token.");
+            return "redirect:/login";
+        }
+
+        UserData user = userOpt.get();
+        user.setPassword(passwordEncoder.encode(password));
+        user.setResetToken(null);
+        user.setResetTokenExpiry(null);
+        userRepo.save(user);
+
+        redirectAttributes.addFlashAttribute("successMessage", "Password reset successfully. Please login.");
+        return "redirect:/login";
+    }
 
     @GetMapping("/about")
     public String about() { return "about"; }

@@ -8,4 +8,5 @@ import com.example.aianalysis.Model.UserData;
 @Repository
 public interface AianalysisRepo extends MongoRepository<UserData, String> {
     Optional<UserData> findByEmail(String email);
+    Optional<UserData> findByResetToken(String token);
 }

@@ -32,7 +32,9 @@ public class Aiconfig {
                     "/services",
                     "/about",
                     "/contact",
-                    "/ContactUs"
+                    "/ContactUs",
+                    "/reset-password",
+                    "/forgot-password"
                 ).permitAll()
                 .anyRequest().authenticated()
             )
