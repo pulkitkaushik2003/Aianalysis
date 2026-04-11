@@ -23,7 +23,7 @@ public class PasswordResetService {
     @Autowired
     private JavaMailSender mailSender;
 
-    @Value("${spring.mail.username:}")
+    @Value("${spring.mail.from:${spring.mail.username:}}")
     private String mailFrom;
 
     public record SendResult(String token, boolean mailSent) {}

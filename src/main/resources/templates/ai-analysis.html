@@ -129,6 +129,13 @@
         </a>
       </li>
       <li>
+       <a th:href="@{/image-to-excel}" href="/image-to-excel"
+             class="nav-active flex items-center gap-3 rounded-lg bg-slate-800 px-3 py-2">
+            <i data-lucide="sheet" class="h-4 w-4"></i>
+            <span>Image to Excel</span>
+          </a>
+      </li>
+      <li>
         <a th:href="@{/fix}" href="/fix"
            class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
           🔧 Data Cleaning
@@ -442,7 +449,7 @@
   }
 
   // ── Send message ─────────────────────────────────────────
-  async function sendMessage() {
+  async function legacySendMessage() {
     if (isLoading) return;
 
     const input = document.getElementById('chatInput');
@@ -596,8 +603,8 @@ Rules:
           <p class="text-sm">${escapeHtml(text)}</p>
         </div>`;
     } else {
-      const sourceBadge = source === 'openai'
-          ? '<span class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-sky-900/50 text-sky-300 border border-sky-700">OpenAI</span>'
+      const sourceBadge = source === 'gemini'
+          ? '<span class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-sky-900/50 text-sky-300 border border-sky-700">Gemini</span>'
         : source === 'error'
           ? '<span class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-red-900/50 text-red-300 border border-red-700">Error</span>'
         : source === 'local'

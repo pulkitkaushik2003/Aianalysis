@@ -11,7 +11,8 @@ import com.example.aianalysis.service.DataCleaningService;
 import com.example.aianalysis.service.DataCleaningService.CleaningResult;
 import com.example.aianalysis.service.FileParserService;
 import com.example.aianalysis.service.FileParserService.ParseMetadata;
-import com.example.aianalysis.service.OpenAIDataAssistantService;
+import com.example.aianalysis.service.GeminiDataAssistantService;
+import com.example.aianalysis.service.ImageToExcelService;
 import com.example.aianalysis.service.UploadedDatasetService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpSession;
@@ -66,6 +67,9 @@ public class Aicontroller {
     private static final int  CHART_MAX_DISPLAY_CATEGORIES = 250;
     private static final int  SCATTER_POINT_LIMIT        = 1500;
     private static final int  PIE_MAX_SLICES             = 10;
+    private static final String IMAGE_EXTRACTED_DATA_SESSION_KEY = "extractedImageData";
+    private static final String IMAGE_EXTRACTED_HEADERS_SESSION_KEY = "extractedHeaders";
+    private static final String IMAGE_EXTRACTED_FILE_NAME_SESSION_KEY = "extractedImageFileName";
     private static final DateTimeFormatter MONTH_YEAR_LABEL_FORMATTER =
             new DateTimeFormatterBuilder()
                     .parseCaseInsensitive()
@@ -84,7 +88,8 @@ public class Aicontroller {
     @Autowired private FileParserService             fileParserService;
     @Autowired private DataCleaningService           dataCleaningService;
     @Autowired private AdvancedStatsAssistantService advancedStatsAssistantService;
-    @Autowired private OpenAIDataAssistantService openAiDataAssistantService;
+    @Autowired private GeminiDataAssistantService    geminiDataAssistantService;
+    @Autowired private ImageToExcelService           imageToExcelService;
     @Autowired private UploadedDatasetService        uploadedDatasetService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -184,7 +189,8 @@ public class Aicontroller {
             userService.registerUser(userData);
             return "redirect:/login";
         } catch (RuntimeException ex) {
-            model.addAttribute("error", ex.getMessage());
+            model.addAttribute("error", userFacingError(ex,
+                    "Account create nahi ho paaya. Thodi der baad dobara try karo."));
             model.addAttribute("user", userData);
             return "signup";
         }
@@ -204,7 +210,7 @@ public class Aicontroller {
             redirectAttributes.addFlashAttribute("successMessage", "Message save ho gaya.");
         } catch (Exception ex) {
             redirectAttributes.addFlashAttribute("errorMessage",
-                    "Contact save nahi hua: " + ex.getMessage());
+                    userFacingError(ex, "Contact save nahi hua. Please thodi der baad dobara try karo."));
         }
         return "redirect:/contact";
     }
@@ -290,12 +296,93 @@ public class Aicontroller {
         } catch (Exception ex) {
             ex.printStackTrace();
             redirectAttributes.addFlashAttribute("errorMessage",
-                    "Upload failed: " + ex.getMessage());
+                    userFacingError(ex, "Upload failed. Please file ya database settings check karo."));
             return "redirect:/upload";
         }
     }
 
     // ── 3. DASHBOARD ─────────────────────────────────────────
+
+    @GetMapping("/image-to-excel")
+    public String imageToExcelPage(HttpSession session, Model model) {
+        List<Map<String, Object>> previewRows = getImageExtractedData(session);
+        List<String> headers = getImageExtractedHeaders(session, previewRows);
+
+        model.addAttribute("previewRows", previewRows);
+        model.addAttribute("previewHeaders", headers);
+        model.addAttribute("previewRowCount", previewRows.size());
+        model.addAttribute("previewFileName",
+                session.getAttribute(IMAGE_EXTRACTED_FILE_NAME_SESSION_KEY));
+        model.addAttribute("hasPreview", !previewRows.isEmpty());
+
+        try {
+            model.addAttribute("previewRowsJson", objectMapper.writeValueAsString(previewRows));
+            model.addAttribute("previewHeadersJson", objectMapper.writeValueAsString(headers));
+        } catch (Exception ex) {
+            model.addAttribute("previewRowsJson", "[]");
+            model.addAttribute("previewHeadersJson", "[]");
+        }
+
+        return "image-to-excel";
+    }
+
+    @PostMapping({"/image-to-excel/preview", "/image-to-excel/extract"})
+    @ResponseBody
+    public Map<String, Object> previewImageToExcel(@RequestParam("image") MultipartFile image,
+                                                   HttpSession session) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        clearImageExtractionState(session);
+
+        try {
+            ImageToExcelService.ExtractionResult result = imageToExcelService.extractTableData(image);
+
+            session.setAttribute(IMAGE_EXTRACTED_DATA_SESSION_KEY, result.rows());
+            session.setAttribute(IMAGE_EXTRACTED_HEADERS_SESSION_KEY, result.headers());
+            session.setAttribute(IMAGE_EXTRACTED_FILE_NAME_SESSION_KEY, image.getOriginalFilename());
+
+            response.put("success", true);
+            response.put("message", "Image se table data extract ho gaya.");
+            response.put("headers", result.headers());
+            response.put("data", result.rows());
+            response.put("rowCount", result.rows().size());
+            response.put("fileName", image.getOriginalFilename());
+            response.put("downloadUrl", "/image-to-excel/download");
+            return response;
+        } catch (ImageToExcelService.ImageExtractionException ex) {
+            response.put("success", false);
+            response.put("message", ex.getMessage());
+            return response;
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            response.put("success", false);
+            response.put("message",
+                    userFacingError(ex, "Image process nahi ho paayi. Thodi der baad dobara try karo."));
+            return response;
+        }
+    }
+
+    @GetMapping("/image-to-excel/download")
+    public ResponseEntity<byte[]> downloadImageToExcel(HttpSession session) {
+        List<Map<String, Object>> rows = getImageExtractedData(session);
+        List<String> headers = getImageExtractedHeaders(session, rows);
+
+        if (rows.isEmpty() || headers.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        try {
+            byte[] excelBytes = imageToExcelService.generateExcel(headers, rows);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"" + imageToExcelService.excelFileName() + "\"")
+                    .contentType(MediaType.parseMediaType(
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .body(excelBytes);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
 
     @GetMapping("/dashboard")
     public String dashboard(@RequestParam(defaultValue = "1")  int page,
@@ -507,7 +594,7 @@ public class Aicontroller {
             );
         } catch (Exception ex) {
             ex.printStackTrace();
-            return chartError("Chart data load nahi hui: " + ex.getMessage());
+            return chartError(userFacingError(ex, "Chart data load nahi hui."));
         }
     }
 
@@ -534,7 +621,7 @@ public class Aicontroller {
             return buildPieChartData(session, validColumns, mode, limit);
         } catch (Exception ex) {
             ex.printStackTrace();
-            return chartError("Pie chart data load nahi hui: " + ex.getMessage());
+            return chartError(userFacingError(ex, "Pie chart data load nahi hui."));
         }
     }
 
@@ -1730,7 +1817,7 @@ public class Aicontroller {
                 : String.valueOf(payload.getOrDefault("question", ""));
 
         try {
-            String answer = openAiDataAssistantService.askQuestion(
+            String answer = geminiDataAssistantService.askQuestion(
                     question, data, headers,
                     (String) session.getAttribute("fileName"),
                     getRowCount(session), getColCount(session),
@@ -1738,7 +1825,7 @@ public class Aicontroller {
                     getIntAttr(session, "cleanRows"));
             response.put("success", true);
             response.put("answer",  answer);
-            response.put("mode",    openAiDataAssistantService.activeProvider());
+            response.put("mode",    geminiDataAssistantService.activeProvider());
         } catch (Exception ex) {
             String fallback = advancedStatsAssistantService.answerQuestion(
                     question, data, headers,
@@ -1748,7 +1835,7 @@ public class Aicontroller {
             response.put("success", true);
             response.put("answer",  fallback);
             response.put("mode",    "local");
-            response.put("error",   ex.getMessage());
+            response.put("error",   userFacingError(ex, "AI service temporarily unavailable hai."));
         }
         return response;
     }
@@ -1906,6 +1993,25 @@ public class Aicontroller {
                 : fileParserService.extractHeaders(fallback);
     }
 
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> getImageExtractedData(HttpSession session) {
+        Object data = session.getAttribute(IMAGE_EXTRACTED_DATA_SESSION_KEY);
+        if (data instanceof List<?> list && !list.isEmpty()) {
+            return (List<Map<String, Object>>) list;
+        }
+        return List.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> getImageExtractedHeaders(HttpSession session,
+                                                  List<Map<String, Object>> fallback) {
+        Object headers = session.getAttribute(IMAGE_EXTRACTED_HEADERS_SESSION_KEY);
+        if (headers instanceof List<?> list && !list.isEmpty()) {
+            return (List<String>) list;
+        }
+        return collectHeadersFromRows(fallback);
+    }
+
     private List<Map<String, Object>> limitWithoutIssue(
             List<Map<String, Object>> data, int limit) {
         if (data == null || data.isEmpty()) return List.of();
@@ -1917,6 +2023,18 @@ public class Aicontroller {
                     return clean;
                 })
                 .toList();
+    }
+
+    private List<String> collectHeadersFromRows(List<Map<String, Object>> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+
+        LinkedHashSet<String> headers = new LinkedHashSet<>();
+        for (Map<String, Object> row : rows) {
+            headers.addAll(row.keySet());
+        }
+        return new ArrayList<>(headers);
     }
 
     private boolean isLargeFileMode(HttpSession session) {
@@ -1938,12 +2056,60 @@ public class Aicontroller {
         return val instanceof Number n ? n.intValue() : 0;
     }
 
+    private String userFacingError(Throwable ex, String fallback) {
+        String message = rootMessage(ex).toLowerCase(Locale.ROOT);
+
+        if (message.contains("duplicate key") || message.contains("e11000") || message.contains("already exists")) {
+            return "Email already exists! Please login ya dusra email use karo.";
+        }
+
+        if (message.contains("exception authenticating")
+                || message.contains("authentication failed")
+                || message.contains("scram")
+                || message.contains("command failed with error 18")) {
+            return "Database authentication failed. Atlas username/password ya Database Access permissions check karo.";
+        }
+
+        if (message.contains("timed out")
+                || message.contains("connection refused")
+                || message.contains("no server chosen")
+                || message.contains("unknown host")
+                || message.contains("could not connect")) {
+            return "Database connection issue aa rahi hai. Atlas Network Access aur connection string check karo.";
+        }
+
+        return fallback;
+    }
+
+    private String rootMessage(Throwable ex) {
+        String message = "";
+        Throwable current = ex;
+
+        while (current != null) {
+            if (current.getMessage() != null && !current.getMessage().isBlank()) {
+                message = current.getMessage();
+            }
+            current = current.getCause();
+        }
+
+        return message;
+    }
+
     private void clearUploadState(HttpSession session) {
         for (String key : new String[]{
                 "uploadedData","sampleData","cleanedData","streamFilePath",
                 "headers","datasetId","largeFileMode","fileName",
                 "rowCount","colCount","cleanRows","issueCount",
                 "missingCount","duplicateCount","outlierCount","uploadMode"}) {
+            session.removeAttribute(key);
+        }
+    }
+
+    private void clearImageExtractionState(HttpSession session) {
+        for (String key : new String[]{
+                IMAGE_EXTRACTED_DATA_SESSION_KEY,
+                IMAGE_EXTRACTED_HEADERS_SESSION_KEY,
+                IMAGE_EXTRACTED_FILE_NAME_SESSION_KEY}) {
             session.removeAttribute(key);
         }
     }
