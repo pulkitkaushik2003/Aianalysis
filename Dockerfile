@@ -1,4 +1,4 @@
-FROM maven:3.10.1-eclipse-temurin-21 AS build
+FROM maven:3.10.1-jdk-21 AS build
 WORKDIR /app
 
 # copy maven wrapper and pom first to leverage layer caching
