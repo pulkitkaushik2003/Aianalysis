@@ -1,0 +1,11 @@
+target
+.mvn
+/.idea
+.classpath
+.project
+.settings
+.git
+**/node_modules
+**/logs
+*.log
+*.tmp
