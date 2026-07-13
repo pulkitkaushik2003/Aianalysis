@@ -9,18 +9,72 @@
 
   <style>
     @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(30px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
-    .animate-fadeUp { animation: fadeUp 1s ease forwards; }
-    .delay-1 { animation-delay: .3s }
-    .delay-2 { animation-delay: .6s }
-    .glow { box-shadow: 0 0 30px rgba(56,189,248,0.6); }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 20px rgba(56, 189, 248, 0.5); }
+      50% { box-shadow: 0 0 40px rgba(56, 189, 248, 0.8); }
+    }
+
+    .animate-fadeUp {
+      animation: fadeUp 1s ease forwards;
+    }
+
+    .delay-1 { animation-delay: 0.3s; }
+    .delay-2 { animation-delay: 0.6s; }
+    .delay-3 { animation-delay: 0.9s; }
+    .delay-4 { animation-delay: 1.2s; }
+
+    .pulse-glow {
+      animation: pulseGlow 2s infinite;
+    }
+
+    .animate-word {
+      opacity: 0;
+      animation: fadeUp 1s ease forwards;
+    }
+
+    .delay-word-1 { animation-delay: 0.2s; }
+    .delay-word-2 { animation-delay: 0.4s; }
+    .delay-word-3 { animation-delay: 0.6s; }
+    .delay-word-4 { animation-delay: 0.8s; }
+    .delay-word-5 { animation-delay: 1.0s; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    .hero-bg {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    }
+
+    .service-card:hover {
+      transform: translateY(-10px) scale(1.05);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .project-card:hover img {
+      transform: scale(1.1);
+    }
+
+    .project-card img {
+      transition: transform 0.5s ease;
+    }
   </style>
 </head>
 
-<body class="bg-slate-950 min-h-screen flex items-center justify-center text-white">
-  <nav class="flex justify-between items-center px-6 md:px-20 py-6 animate-fadeUp sticky top-0 bg-slate-950/90 backdrop-blur-md z-50">
+<body class="bg-slate-950 text-white overflow-x-hidden">
+
+<!-- NAVBAR -->
+<nav class="flex justify-between items-center px-6 md:px-20 py-6 animate-fadeUp sticky top-0 bg-slate-950/90 backdrop-blur-md z-50">
   <h1 class="text-2xl font-bold text-sky-400 flex items-center gap-2">
     <i data-lucide="bar-chart-3" class="w-8 h-8"></i>
     InsightAnalytics
@@ -76,7 +130,6 @@
     <li class="hover:text-sky-400 transition cursor-pointer">Contact</li>
   </ul>
 </div>
-
 <div class="bg-slate-900 w-full max-w-md p-10 rounded-2xl shadow-2xl animate-fadeUp">
 
   <h1 class="text-3xl font-extrabold text-center text-sky-400 mb-2">
