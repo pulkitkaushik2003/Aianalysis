@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | InsightAnalytics</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fadeUp { animation: fadeUp 1s ease forwards; }
+    .delay-1 { animation-delay: .3s }
+    .delay-2 { animation-delay: .6s }
+    .glow { box-shadow: 0 0 30px rgba(56,189,248,0.6); }
+  </style>
+</head>
+
+<body class="bg-slate-950 min-h-screen flex items-center justify-center text-white">
+
+<div class="bg-slate-900 w-full max-w-md p-10 rounded-2xl shadow-2xl animate-fadeUp">
+
+  <h1 class="text-3xl font-extrabold text-center text-sky-400 mb-2">
+    InsightAnalytics
+  </h1>
+  <p class="text-center text-gray-400 mb-8">
+    Sign in to access your dashboard
+  </p>
+
+  <!-- FLASH MESSAGES -->
+  <p th:if="${successMessage}" class="bg-green-500/20 text-green-300 text-sm p-3 rounded-lg mb-4 text-center">[[${successMessage}]]</p>
+  <p th:if="${infoMessage}"    class="bg-sky-500/10 text-sky-300 text-sm p-3 rounded-lg mb-4 text-center">[[${infoMessage}]]</p>
+  <p th:if="${errorMessage}"   class="bg-red-500/20 text-red-400 text-sm p-3 rounded-lg mb-4 text-center">[[${errorMessage}]]</p>
+
+  <!-- ✅ LOGIN FORM (ONLY LOGIC ADDED) -->
+  <form action="/login" method="post">
+
+    <!-- EMAIL -->
+    <div class="mb-5 animate-fadeUp delay-1">
+      <label class="text-gray-400 text-sm">Email Address</label>
+      <input type="email"
+        name="username"     
+        required
+        placeholder="admin@insight.com"
+        class="w-full mt-2 p-3 rounded-lg bg-slate-800 outline-none focus:ring-2 focus:ring-sky-400">
+    </div>
+
+    <!-- PASSWORD -->
+    <div class="mb-6 animate-fadeUp delay-2">
+      <label class="text-gray-400 text-sm">Password</label>
+      <input type="password"
+        name="password"     
+        required
+        placeholder="••••••••"
+        class="w-full mt-2 p-3 rounded-lg bg-slate-800 outline-none focus:ring-2 focus:ring-sky-400">
+    </div>
+
+    <!-- LOGIN BUTTON -->
+    <button type="submit"
+      class="w-full bg-sky-400 text-black py-3 rounded-xl font-semibold hover:scale-105 transition glow">
+      Login
+    </button>
+
+  </form>
+
+  <div class="flex justify-between items-center mt-6 text-sm text-gray-400">
+    <a href="/forgot-password" class="hover:text-sky-400 cursor-pointer">Forgot password?</a>
+    <a href="/signup" class="hover:text-sky-400 cursor-pointer">Create account</a>
+  </div>
+
+  <p class="text-center text-xs text-gray-500 mt-6">
+    Demo Mode • MongoDB backend connected
+  </p>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <title>Upload Data | InsightAnalytics</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <style>
+    /* Drag active state */
+    .drag-active {
+      border-color: #38bdf8 !important;
+      background-color: rgba(56, 189, 248, 0.08) !important;
+    }
+
+    /* Progress bar animation */
+    @keyframes progressAnim {
+      from { width: 0% }
+      to   { width: 100% }
+    }
+
+    /* Toast slide up */
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+    .toast-show { animation: slideUp 0.3s ease forwards; }
+
+    /* Mode button active */
+    .mode-active {
+      background-color: #38bdf8 !important;
+      color: black !important;
+      border-color: #38bdf8 !important;
+    }
+
+    /* File selected state */
+    .file-selected {
+      border-color: #10b981 !important;
+      background-color: rgba(16, 185, 129, 0.08) !important;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-white">
+
+<!-- TOAST NOTIFICATION -->
+<div id="toast"
+     class="fixed bottom-8 right-8 z-50 hidden px-5 py-3 rounded-xl
+            font-medium text-sm shadow-lg toast-show">
+</div>
+
+<div class="flex min-h-screen">
+
+  <!-- SIDEBAR -->
+  <aside class="w-64 bg-slate-900 p-6 hidden md:flex flex-col">
+    <h1 class="text-2xl font-bold text-sky-400 flex gap-2 items-center mb-10">
+      <i data-lucide="bar-chart-3"></i> InsightAnalytics
+    </h1>
+
+    <ul class="space-y-2 text-gray-300 flex-1">
+      <li>
+        <a th:href="@{/}" href="/"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg
+                  hover:text-sky-400 hover:bg-slate-800 transition">
+          <i data-lucide="home" class="w-4 h-4"></i> Home
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/dashboard}" href="/dashboard"
+           class="nav-active flex gap-3 items-center px-3 py-2
+                  rounded-lg bg-slate-800">
+          <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/upload}" href="/upload"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg
+                  hover:text-sky-400 hover:bg-slate-800 transition">
+          <i data-lucide="upload" class="w-4 h-4"></i> Upload Data
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/charts}" href="/charts"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg
+                  hover:text-sky-400 hover:bg-slate-800 transition">
+          <i data-lucide="bar-chart-2" class="w-4 h-4"></i> Charts
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/ai-analysis}" href="/ai-analysis"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg
+                  hover:text-sky-400 hover:bg-slate-800 transition">
+          <i data-lucide="bot" class="w-4 h-4"></i> AI Analysis
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/contact}" href="/contact"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg
+                  hover:text-sky-400 hover:bg-slate-800 transition">
+          <i data-lucide="mail" class="w-4 h-4"></i> Contact
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/image-to-excel}" href="/image-to-excel"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg
+                  hover:text-sky-400 hover:bg-slate-800 transition">
+          <i data-lucide="sheet" class="w-4 h-4"></i> Image to Excel
+        </a>
+      </li>
+    </ul>
+
+    <!-- Sidebar Footer -->
+    <div class="text-xs text-slate-500 mt-auto">
+      <!-- Powered by line removed -->
+    </div>
+  </aside>
+
+  <!-- MOBILE TOP BAR -->
+  <div class="md:hidden fixed top-0 left-0 right-0 z-40
+              bg-slate-900 px-4 py-3 flex items-center gap-3">
+    <i data-lucide="bar-chart-3" class="text-sky-400"></i>
+    <span class="font-bold text-sky-400">InsightAnalytics</span>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <main class="flex-1 p-8 md:p-12 mt-12 md:mt-0">
+
+    <!-- HEADER -->
+    <div class="mb-10">
+      <h2 class="text-3xl font-bold mb-2">Upload Your Data</h2>
+      <p class="text-gray-400">
+        CSV ya Excel file upload karo — AI automatically clean aur analyze karega.
+      </p>
+    </div>
+
+    <!-- SUCCESS MESSAGE (Thymeleaf se aayega) -->
+    <div th:if="${successMessage}"
+         class="mb-6 bg-emerald-900/40 border border-emerald-500
+                text-emerald-300 px-5 py-3 rounded-xl flex items-center gap-3">
+      <i data-lucide="check-circle"></i>
+      <span th:text="${successMessage}">File uploaded successfully!</span>
+    </div>
+
+    <!-- ERROR MESSAGE (Thymeleaf se aayega) -->
+    <div th:if="${errorMessage}"
+         class="mb-6 bg-red-900/40 border border-red-500
+                text-red-300 px-5 py-3 rounded-xl flex items-center gap-3">
+      <i data-lucide="alert-circle"></i>
+      <span th:text="${errorMessage}">Something went wrong!</span>
+    </div>
+
+    <!-- UPLOAD CARD -->
+    <div class="bg-slate-900 p-10 rounded-3xl max-w-2xl">
+
+      <h3 class="text-xl font-semibold mb-2">Select File</h3>
+      <p class="text-gray-400 text-sm mb-6">
+        Apna data upload karo — hum baaki kaam karenge
+      </p>
+
+      <!-- PRIVATE / NORMAL MODE TOGGLE -->
+      <div class="flex gap-3 mb-6">
+        <button type="button"
+                id="privateBtn"
+                onclick="setMode('private')"
+                class="mode-active flex items-center gap-2 px-4 py-2
+                       rounded-lg border border-slate-600 text-sm
+                       font-medium transition">
+          🔒 Private Mode
+        </button>
+        <button type="button"
+                id="normalBtn"
+                onclick="setMode('normal')"
+                class="flex items-center gap-2 px-4 py-2
+                       rounded-lg border border-slate-600 text-sm
+                       font-medium text-gray-300 transition hover:border-sky-400">
+          💾 Normal Mode
+        </button>
+      </div>
+
+      <!-- Mode Description -->
+      <p id="modeDesc" class="text-xs text-gray-500 mb-6 -mt-2">
+        🔒 Private: Data server pe store nahi hoga — sirf RAM mein process hoga
+      </p>
+
+      <!-- FORM — Thymeleaf action -->
+      <form th:action="@{/dataupload}"
+            action="/dataupload"
+            method="post"
+            enctype="multipart/form-data"
+            id="uploadForm">
+
+        <!-- Hidden mode input -->
+        <input type="hidden" name="mode" id="modeInput" value="private">
+
+        <!-- DRAG & DROP ZONE -->
+        <div id="dropZone"
+             onclick="document.getElementById('fileInput').click()"
+             ondragover="handleDragOver(event)"
+             ondragleave="handleDragLeave(event)"
+             ondrop="handleDrop(event)"
+             class="border-2 border-dashed border-slate-700 rounded-xl
+                    p-10 text-center mb-6 cursor-pointer transition">
+
+          <!-- Default State -->
+          <div id="defaultState">
+            <i data-lucide="file-spreadsheet"
+               class="mx-auto w-12 h-12 text-sky-400 mb-4"></i>
+            <p class="text-gray-400 mb-2">
+              Drag & drop your file here
+            </p>
+            <p class="text-gray-500 text-sm mb-4">ya</p>
+            <span class="bg-sky-400 text-black px-5 py-2
+                         rounded-lg text-sm font-semibold">
+              Browse File
+            </span>
+          </div>
+
+          <!-- File Selected State (hidden by default) -->
+          <div id="selectedState" class="hidden">
+            <i data-lucide="file-check"
+               class="mx-auto w-12 h-12 text-emerald-400 mb-4"></i>
+            <p id="selectedFileName"
+               class="text-emerald-400 font-semibold mb-1">
+              file.csv
+            </p>
+            <p id="selectedFileSize"
+               class="text-gray-500 text-sm">
+              0 KB
+            </p>
+            <button type="button"
+                    onclick="clearFile(event)"
+                    class="mt-3 text-xs text-red-400 hover:text-red-300 underline">
+              Remove file
+            </button>
+          </div>
+        </div>
+
+        <!-- Hidden file input -->
+        <input type="file"
+               id="fileInput"
+               name="file"
+               accept=".csv,.xlsx,.xls"
+               required
+               class="hidden"
+               onchange="handleFileSelect(this)">
+
+        <!-- FORMAT INFO -->
+        <div class="flex flex-wrap gap-2 mb-6">
+          <span class="bg-emerald-900/40 text-emerald-400
+                       text-xs px-3 py-1 rounded-full">
+            ✔ CSV
+          </span>
+          <span class="bg-sky-900/40 text-sky-400
+                       text-xs px-3 py-1 rounded-full">
+            ✔ XLSX
+          </span>
+          <span class="bg-sky-900/40 text-sky-400
+                       text-xs px-3 py-1 rounded-full">
+            ✔ XLS
+          </span>
+          <span class="bg-slate-700/60 text-gray-400
+                       text-xs px-3 py-1 rounded-full">
+            Max 100MB
+          </span>
+        </div>
+
+        <!-- PROGRESS BAR (hidden by default) -->
+        <div id="progressContainer" class="hidden mb-6">
+          <div class="flex justify-between text-xs text-gray-400 mb-2">
+            <span id="progressLabel">Uploading...</span>
+            <span id="progressPercent">0%</span>
+          </div>
+          <div class="bg-slate-700 rounded-full h-2 overflow-hidden">
+            <div id="progressFill"
+                 class="bg-sky-400 h-2 rounded-full transition-all duration-300"
+                 style="width: 0%">
+            </div>
+          </div>
+        </div>
+
+        <!-- SUBMIT BUTTON -->
+        <button type="button"
+                id="uploadBtn"
+                onclick="startUpload()"
+                class="bg-sky-400 text-black px-8 py-3 rounded-xl
+                       font-semibold hover:scale-105 transition
+                       disabled:opacity-50 disabled:cursor-not-allowed
+                       disabled:hover:scale-100 w-full md:w-auto">
+          <span id="btnText">🚀 Upload & Analyze</span>
+        </button>
+
+      </form>
+    </div>
+
+    <!-- NEXT STEPS -->
+    <div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl">
+
+      <div class="bg-slate-900 p-6 rounded-xl border border-slate-800
+                  hover:border-sky-400/30 transition">
+        <div class="text-2xl mb-3">1️⃣</div>
+        <h4 class="font-semibold mb-2">Upload File</h4>
+        <p class="text-gray-400 text-sm">
+          CSV ya Excel securely upload karo
+        </p>
+      </div>
+
+      <div class="bg-slate-900 p-6 rounded-xl border border-slate-800
+                  hover:border-sky-400/30 transition">
+        <div class="text-2xl mb-3">2️⃣</div>
+        <h4 class="font-semibold mb-2">Data Cleaning</h4>
+        <p class="text-gray-400 text-sm">
+          Missing values, duplicates aur invalid data fix hoga
+        </p>
+      </div>
+
+      <div class="bg-slate-900 p-6 rounded-xl border border-slate-800
+                  hover:border-sky-400/30 transition">
+        <div class="text-2xl mb-3">3️⃣</div>
+        <h4 class="font-semibold mb-2">AI Analysis</h4>
+        <p class="text-gray-400 text-sm">
+          <!-- Claude promotional line removed -->
+        </p>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<script>
+  lucide.createIcons();
+
+  let selectedFile = null;
+  let currentMode = 'private';
+
+  // ── Mode Toggle ──────────────────────────────────────────
+  function setMode(mode) {
+    currentMode = mode;
+    document.getElementById('modeInput').value = mode;
+
+    const privateBtn = document.getElementById('privateBtn');
+    const normalBtn  = document.getElementById('normalBtn');
+    const modeDesc   = document.getElementById('modeDesc');
+
+    if (mode === 'private') {
+      privateBtn.classList.add('mode-active');
+      normalBtn.classList.remove('mode-active');
+      normalBtn.classList.add('text-gray-300');
+      modeDesc.textContent =
+        '🔒 Private: Data server pe store nahi hoga — sirf RAM mein process hoga';
+    } else {
+      normalBtn.classList.add('mode-active');
+      privateBtn.classList.remove('mode-active');
+      privateBtn.classList.add('text-gray-300');
+      modeDesc.textContent =
+        '💾 Normal: Data MongoDB mein save hoga — history aur comparison milegi';
+    }
+  }
+
+  // ── Drag & Drop ──────────────────────────────────────────
+  function handleDragOver(e) {
+    e.preventDefault();
+    document.getElementById('dropZone').classList.add('drag-active');
+  }
+
+  function handleDragLeave(e) {
+    document.getElementById('dropZone').classList.remove('drag-active');
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    document.getElementById('dropZone').classList.remove('drag-active');
+    const file = e.dataTransfer.files[0];
+    if (file) processFile(file);
+  }
+
+  // ── File Input Select ────────────────────────────────────
+  function handleFileSelect(input) {
+    if (input.files && input.files[0]) {
+      processFile(input.files[0]);
+    }
+  }
+
+  // ── Validate + Show Selected ─────────────────────────────
+  function processFile(file) {
+    // Format check
+    const allowed = ['csv', 'xlsx', 'xls'];
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!allowed.includes(ext)) {
+      showToast('❌ Sirf CSV ya Excel file allowed hai!', 'error');
+      return;
+    }
+
+    // Size check (100MB)
+    if (file.size > 100 * 1024 * 1024) {
+      showToast('❌ File 100MB se badi hai!', 'error');
+      return;
+    }
+
+    selectedFile = file;
+
+    // Update drop zone UI
+    const dropZone      = document.getElementById('dropZone');
+    const defaultState  = document.getElementById('defaultState');
+    const selectedState = document.getElementById('selectedState');
+
+    dropZone.classList.add('file-selected');
+    defaultState.classList.add('hidden');
+    selectedState.classList.remove('hidden');
+
+    document.getElementById('selectedFileName').textContent = file.name;
+    document.getElementById('selectedFileSize').textContent =
+      formatFileSize(file.size);
+
+    // Assign to actual input
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    document.getElementById('fileInput').files = dt.files;
+
+    showToast('✅ File ready: ' + file.name, 'success');
+    lucide.createIcons();
+  }
+
+  // ── Clear File ───────────────────────────────────────────
+  function clearFile(e) {
+    e.stopPropagation();
+    selectedFile = null;
+
+    const dropZone      = document.getElementById('dropZone');
+    const defaultState  = document.getElementById('defaultState');
+    const selectedState = document.getElementById('selectedState');
+
+    dropZone.classList.remove('file-selected');
+    defaultState.classList.remove('hidden');
+    selectedState.classList.add('hidden');
+    document.getElementById('fileInput').value = '';
+    lucide.createIcons();
+  }
+
+  // ── Upload Start ─────────────────────────────────────────
+  function startUpload() {
+    if (!selectedFile) {
+      showToast('⚠️ Pehle file select karo!', 'error');
+      return;
+    }
+
+    // Show progress
+    const progressContainer = document.getElementById('progressContainer');
+    const progressFill      = document.getElementById('progressFill');
+    const progressPercent   = document.getElementById('progressPercent');
+    const progressLabel     = document.getElementById('progressLabel');
+    const uploadBtn         = document.getElementById('uploadBtn');
+    const btnText           = document.getElementById('btnText');
+
+    progressContainer.classList.remove('hidden');
+    uploadBtn.disabled = true;
+    btnText.textContent = '⏳ Uploading...';
+
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += Math.random() * 15;
+      if (progress > 90) progress = 90;
+
+      progressFill.style.width    = progress + '%';
+      progressPercent.textContent = Math.round(progress) + '%';
+      progressLabel.textContent   = 'Uploading ' + selectedFile.name + '...';
+    }, 200);
+
+    // Simulate complete then submit
+    setTimeout(() => {
+      clearInterval(interval);
+      progressFill.style.width    = '100%';
+      progressPercent.textContent = '100%';
+      progressLabel.textContent   = '✅ Upload complete! Analyzing...';
+      btnText.textContent         = '✅ Done!';
+
+      setTimeout(() => {
+        document.getElementById('uploadForm').submit();
+      }, 600);
+    }, 1800);
+  }
+
+  // ── Format File Size ─────────────────────────────────────
+  function formatFileSize(bytes) {
+    if (bytes < 1024)        return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  // ── Toast ────────────────────────────────────────────────
+  function showToast(message, type) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className =
+      'fixed bottom-8 right-8 z-50 px-5 py-3 rounded-xl ' +
+      'font-medium text-sm shadow-lg toast-show ' +
+      (type === 'success'
+        ? 'bg-emerald-600 text-white'
+        : 'bg-red-600 text-white');
+    toast.classList.remove('hidden');
+    setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+  }
+</script>
+
+</body>
+</html>
+

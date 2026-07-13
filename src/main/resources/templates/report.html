@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Analysis Dashboard Report</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --sky: #0284c7;
+      --green: #059669;
+      --amber: #b45309;
+      --rose: #be123c;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+
+    .shell { max-width: 1280px; margin: 0 auto; padding: 28px; }
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .eyebrow { margin: 0 0 8px; color: var(--sky); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(28px, 4vw, 44px); line-height: 1.05; }
+    h2 { margin: 0 0 14px; font-size: 18px; }
+    .sub { margin: 10px 0 0; color: var(--muted); font-size: 14px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    .btn {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--ink);
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .btn.primary { background: var(--ink); color: white; border-color: var(--ink); }
+
+    .grid { display: grid; gap: 14px; }
+    .kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 24px 0; }
+    .metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .charts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+    }
+    .kpi-label, .metric-label { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+    .kpi-value { margin-top: 8px; font-size: 26px; font-weight: 850; }
+    .metric-value { margin-top: 7px; font-size: 20px; font-weight: 800; overflow-wrap: anywhere; }
+    .hint { color: var(--muted); font-size: 12px; margin-top: 6px; }
+    .accent-sky { color: var(--sky); }
+    .accent-green { color: var(--green); }
+    .accent-amber { color: var(--amber); }
+    .accent-rose { color: var(--rose); }
+
+    section { margin-top: 22px; }
+    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 5px 9px;
+      color: var(--muted);
+      font-size: 12px;
+      background: #f8fafc;
+    }
+    .pill b { color: var(--ink); }
+
+    .chart-img {
+      display: block;
+      width: 100%;
+      max-height: 360px;
+      object-fit: contain;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #020617;
+    }
+    .chart-title { margin: 12px 0 4px; font-weight: 800; }
+    .empty { color: var(--muted); padding: 18px; border: 1px dashed #cbd5e1; border-radius: 8px; background: #fff; }
+    .chat {
+      display: grid;
+      grid-template-columns: minmax(180px, .42fr) minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+      margin-bottom: 12px;
+    }
+    .question { font-weight: 800; }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      font-family: inherit;
+      line-height: 1.55;
+      color: #1e293b;
+    }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: white; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      background: #0f172a;
+      color: white;
+      text-align: left;
+      padding: 10px 12px;
+      white-space: nowrap;
+    }
+    td { padding: 9px 12px; border-top: 1px solid var(--line); color: #334155; white-space: nowrap; }
+    tr:nth-child(even) td { background: #f8fafc; }
+
+    @media (max-width: 1000px) {
+      .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .metrics, .charts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 700px) {
+      .shell { padding: 18px; }
+      .topbar, .section-head { display: block; }
+      .actions { justify-content: flex-start; margin-top: 14px; }
+      .kpis, .metrics, .charts, .chat { grid-template-columns: 1fr; }
+    }
+    @media print {
+      body { background: white; }
+      .shell { max-width: none; padding: 0; }
+      .actions { display: none; }
+      .card, .table-wrap { break-inside: avoid; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">InsightAnalytics AI</p>
+        <h1>AI Analysis Dashboard Report</h1>
+        <p class="sub">
+          File: <b th:text="${fileName}">Uploaded dataset</b>
+          <span> | Generated: </span><b th:text="${generated}">now</b>
+        </p>
+      </div>
+      <div class="actions">
+        <a class="btn" th:href="@{/ai-analysis}" href="/ai-analysis">Back to AI</a>
+        <button class="btn primary" type="button" onclick="window.print()">Print / Save PDF</button>
+      </div>
+    </header>
+
+    <section class="grid kpis">
+      <div class="card"><div class="kpi-label">Total Rows</div><div class="kpi-value accent-sky" th:text="${totalRows}">0</div></div>
+      <div class="card"><div class="kpi-label">Columns</div><div class="kpi-value" th:text="${#lists.size(previewHeaders)}">0</div></div>
+      <div class="card"><div class="kpi-label">Clean Rows</div><div class="kpi-value accent-green" th:text="${cleanRows}">0</div></div>
+      <div class="card"><div class="kpi-label">Issues</div><div class="kpi-value accent-rose" th:text="${issueCount}">0</div></div>
+      <div class="card"><div class="kpi-label">Saved Chats</div><div class="kpi-value accent-amber" th:text="${savedChatCount}">0</div></div>
+      <div class="card"><div class="kpi-label">Saved Charts</div><div class="kpi-value accent-sky" th:text="${savedChartCount}">0</div></div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <div>
+          <h2>Advanced Metrics</h2>
+          <p class="sub">
+            Primary numeric column:
+            <b th:text="${metrics.primaryColumn}">Value</b>
+            <span th:if="${metrics.secondaryColumn != '--'}">
+              | Correlation with <b th:text="${metrics.secondaryColumn}">Other</b>
+            </span>
+          </p>
+        </div>
+      </div>
+      <div th:if="${metrics.hasNumeric}" class="grid metrics">
+        <div class="card"><div class="metric-label">Count</div><div class="metric-value" th:text="${metrics.count}">--</div></div>
+        <div class="card"><div class="metric-label">Sum</div><div class="metric-value accent-sky" th:text="${metrics.sum}">--</div></div>
+        <div class="card"><div class="metric-label">Average</div><div class="metric-value" th:text="${metrics.avg}">--</div></div>
+        <div class="card"><div class="metric-label">Median</div><div class="metric-value" th:text="${metrics.median}">--</div></div>
+        <div class="card"><div class="metric-label">Minimum</div><div class="metric-value" th:text="${metrics.min}">--</div></div>
+        <div class="card"><div class="metric-label">Maximum</div><div class="metric-value accent-green" th:text="${metrics.max}">--</div></div>
+        <div class="card"><div class="metric-label">Mode</div><div class="metric-value" th:text="${metrics.mode}">--</div></div>
+        <div class="card"><div class="metric-label">Std Deviation</div><div class="metric-value" th:text="${metrics.stdDev}">--</div></div>
+        <div class="card"><div class="metric-label">Variance</div><div class="metric-value" th:text="${metrics.variance}">--</div></div>
+        <div class="card"><div class="metric-label">Q1 / Q3</div><div class="metric-value"><span th:text="${metrics.q1}">--</span> / <span th:text="${metrics.q3}">--</span></div></div>
+        <div class="card"><div class="metric-label">P90</div><div class="metric-value" th:text="${metrics.p90}">--</div></div>
+        <div class="card"><div class="metric-label">Growth</div><div class="metric-value accent-amber" th:text="${metrics.growth}">--</div></div>
+        <div class="card"><div class="metric-label">Skewness</div><div class="metric-value" th:text="${metrics.skewness}">--</div></div>
+        <div class="card"><div class="metric-label">Kurtosis</div><div class="metric-value" th:text="${metrics.kurtosis}">--</div></div>
+        <div class="card"><div class="metric-label">Correlation</div><div class="metric-value" th:text="${metrics.correlation}">--</div></div>
+        <div class="card"><div class="metric-label">Forecast</div><div class="metric-value accent-green" th:text="${metrics.forecast}">--</div></div>
+      </div>
+      <div th:unless="${metrics.hasNumeric}" class="empty">Numeric column detect nahi hua, isliye advanced metrics available nahi hain.</div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Saved Charts</h2>
+        <p class="sub" th:text="|${savedChartCount} chart(s) included|">0 chart(s) included</p>
+      </div>
+      <div th:if="${savedCharts != null and not #lists.isEmpty(savedCharts)}" class="grid charts">
+        <article class="card" th:each="chart : ${savedCharts}">
+          <img th:if="${chart.imageData != null and not #strings.isEmpty(chart.imageData)}"
+               th:src="${chart.imageData}"
+               class="chart-img"
+               alt="Saved chart" />
+          <div th:unless="${chart.imageData != null and not #strings.isEmpty(chart.imageData)}" class="empty">Chart preview unavailable.</div>
+          <p class="chart-title" th:text="${chart.title}">Saved chart</p>
+          <div class="pill-row">
+            <span class="pill">Type: <b th:text="${chart.chartType}">chart</b></span>
+            <span class="pill">Saved: <b th:text="${chart.timestampLabel}">time</b></span>
+            <span class="pill" th:if="${chart.meta != null and chart.meta.xAxis != null}">X: <b th:text="${chart.meta.xAxis}">x</b></span>
+            <span class="pill" th:if="${chart.meta != null and chart.meta.yAxis != null}">Y: <b th:text="${chart.meta.yAxis}">y</b></span>
+          </div>
+          <p class="hint" th:if="${chart.meta != null and chart.meta.note != null}" th:text="${chart.meta.note}">Chart note</p>
+        </article>
+      </div>
+      <div th:if="${savedCharts == null or #lists.isEmpty(savedCharts)}" class="empty">Saved charts abhi nahi hain. Charts page par graph save karte hi yahan aa jayega.</div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Saved AI Chats</h2>
+        <p class="sub" th:text="|${savedChatCount} chat(s) included|">0 chat(s) included</p>
+      </div>
+      <div th:if="${savedChats != null and not #lists.isEmpty(savedChats)}">
+        <article class="card chat" th:each="chat : ${savedChats}">
+          <div>
+            <div class="pill-row">
+              <span class="pill">Mode: <b th:text="${chat.mode}">ai</b></span>
+              <span class="pill">Saved: <b th:text="${chat.timestampLabel}">time</b></span>
+            </div>
+            <p class="question" th:text="${chat.question}">Question</p>
+          </div>
+          <pre th:text="${chat.answer}">Answer</pre>
+        </article>
+      </div>
+      <div th:if="${savedChats == null or #lists.isEmpty(savedChats)}" class="empty">Saved chats abhi nahi hain. AI answer ke neeche Save chat use karo.</div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <div>
+          <h2>Data Preview</h2>
+          <p class="sub" th:text="${columns}">Columns</p>
+        </div>
+      </div>
+      <div th:if="${previewRows != null and not #lists.isEmpty(previewRows)}" class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th th:each="h : ${previewHeaders}" th:text="${h}">Column</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr th:each="row : ${previewRows}">
+              <td th:each="h : ${previewHeaders}" th:text="${row[h]}">-</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div th:if="${previewRows == null or #lists.isEmpty(previewRows)}" class="empty">Preview ke liye uploaded data nahi mila.</div>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <title>Charts | InsightAnalytics</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    .nav-active { color: #38bdf8; font-weight: 600; }
+    .chart-type-btn { transition: all 0.2s; }
+    .chart-type-btn.active {
+      background: #38bdf8;
+      color: black;
+      font-weight: 600;
+    }
+    @keyframes fadeIn {
+      from { opacity:0; transform:translateY(6px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .fade-in { animation: fadeIn 0.3s ease forwards; }
+
+    /* Chart skeleton loader */
+    @keyframes shimmer {
+      0%   { background-position: -200% 0; }
+      100% { background-position:  200% 0; }
+    }
+    .skeleton {
+      background: linear-gradient(90deg,
+        #1e293b 25%, #2d3f55 50%, #1e293b 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 12px;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-white">
+<div class="flex min-h-screen">
+
+  <!-- ── SIDEBAR ──────────────────────────────────────────── -->
+  <aside class="w-64 bg-slate-900 p-6 hidden md:flex flex-col fixed h-full">
+    <h1 class="text-2xl font-bold text-sky-400 mb-10">InsightAnalytics</h1>
+
+    <ul class="space-y-2 text-gray-300 flex-1">
+      <li>
+        <a th:href="@{/}" href="/"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          🏠 Home
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/dashboard}" href="/dashboard"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          📊 Dashboard
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/upload}" href="/upload"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          📤 Upload Data
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/charts}" href="/charts"
+           class="nav-active flex gap-3 items-center px-3 py-2 rounded-lg bg-slate-800">
+          📈 Charts
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/ai-analysis}" href="/ai-analysis"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          🤖 AI Analysis
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/image-to-excel}" href="/image-to-excel"
+             class="nav-active flex items-center gap-3 rounded-lg bg-slate-800 px-3 py-2">
+            <i data-lucide="sheet" class="h-4 w-4"></i>
+            <span>Image to Excel</span>
+          </a>
+      </li>
+      <li>
+        <a th:href="@{/contact}" href="/contact"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          ✉️ Contact
+        </a>
+      </li>
+    </ul>
+
+    <div class="text-xs text-slate-500 mt-auto pt-4 border-t border-slate-800">
+      <p>Powered by Gemini AI</p>
+      <p th:if="${fileName}" class="text-slate-400 truncate mt-1">
+        📄 <span th:text="${fileName}">data.csv</span>
+      </p>
+    </div>
+  </aside>
+
+  <!-- ── MAIN ─────────────────────────────────────────────── -->
+  <main class="flex-1 md:ml-64 p-6 md:p-10">
+
+    <!-- HEADER -->
+    <div class="mb-8">
+      <h2 class="text-2xl font-bold mb-1">Charts</h2>
+      <p class="text-gray-400 text-sm">
+        Apne data ko visually analyze karo
+      </p>
+    </div>
+
+    <!-- NO DATA STATE -->
+    <div th:if="${headers == null or #lists.isEmpty(headers)}"
+         class="text-center py-24 text-gray-400 fade-in">
+      <p class="text-5xl mb-4">📊</p>
+      <p class="text-xl font-semibold mb-2">Koi data nahi mila</p>
+      <p class="text-sm text-gray-500">
+        Sidebar mein <span class="text-sky-400">"Upload Data"</span> pe jaao
+      </p>
+    </div>
+
+    <!-- DATA STATE -->
+    <div th:if="${headers != null and !#lists.isEmpty(headers)}" class="fade-in">
+
+      <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+        <!-- ── LEFT: Config Panel ────────────────────────── -->
+        <div class="xl:col-span-1 space-y-5">
+
+          <!-- Chart Type -->
+          <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800">
+            <p class="text-sm font-semibold text-gray-300 mb-3">Chart Type</p>
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="setChartType('bar')"
+                      id="btn-bar"
+                      class="chart-type-btn active flex flex-col items-center gap-1
+                             bg-slate-800 px-3 py-3 rounded-xl text-sm">
+                <span class="text-xl">📊</span>
+                <span>Bar</span>
+              </button>
+              <button onclick="setChartType('line')"
+                      id="btn-line"
+                      class="chart-type-btn flex flex-col items-center gap-1
+                             bg-slate-800 px-3 py-3 rounded-xl text-sm">
+                <span class="text-xl">📈</span>
+                <span>Line</span>
+              </button>
+              <button onclick="setChartType('pie')"
+                      id="btn-pie"
+                      class="chart-type-btn flex flex-col items-center gap-1
+                             bg-slate-800 px-3 py-3 rounded-xl text-sm">
+                <span class="text-xl">🥧</span>
+                <span>Pie</span>
+              </button>
+              <button onclick="setChartType('scatter')"
+                      id="btn-scatter"
+                      class="chart-type-btn flex flex-col items-center gap-1
+                             bg-slate-800 px-3 py-3 rounded-xl text-sm">
+                <span class="text-xl">🔵</span>
+                <span>Scatter</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Axis Selection -->
+          <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800">
+            <p class="text-sm font-semibold text-gray-300 mb-3">Axis Selection</p>
+
+            <!-- X Axis -->
+            <div class="mb-4">
+              <label class="text-xs text-gray-400 mb-1 block">X Axis (Label)</label>
+              <select id="xAxis"
+                      onchange="buildChart()"
+                      class="w-full bg-slate-800 border border-slate-700 rounded-lg
+                             px-3 py-2 text-sm text-white focus:outline-none
+                             focus:border-sky-400">
+                <!-- Thymeleaf se headers aayenge -->
+                <option th:each="h : ${headers}"
+                        th:value="${h}"
+                        th:text="${h}">
+                </option>
+              </select>
+            </div>
+
+            <!-- Y Axis -->
+            <div id="yAxisWrapper">
+              <label class="text-xs text-gray-400 mb-1 block">Y Axis (Value)</label>
+              <select id="yAxis"
+                      onchange="buildChart()"
+                      class="w-full bg-slate-800 border border-slate-700 rounded-lg
+                             px-3 py-2 text-sm text-white focus:outline-none
+                             focus:border-sky-400">
+                <option th:each="h : ${headers}"
+                        th:value="${h}"
+                        th:text="${h}">
+                </option>
+              </select>
+            </div>
+
+            <div id="nonPieControls" class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+              <div>
+                <label class="text-xs text-gray-400 mb-1 block">Aggregation</label>
+                <select id="aggregationMode"
+                        onchange="buildChart()"
+                        class="w-full bg-slate-800 border border-slate-700 rounded-lg
+                               px-3 py-2 text-sm text-white focus:outline-none
+                               focus:border-sky-400">
+                  <option value="sum" selected>Sum</option>
+                  <option value="avg">Average</option>
+                  <option value="min">Minimum</option>
+                  <option value="max">Maximum</option>
+                  <option value="count">Count</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-gray-400 mb-1 block">Category Limit</label>
+                <select id="categoryLimit"
+                        onchange="buildChart()"
+                        class="w-full bg-slate-800 border border-slate-700 rounded-lg
+                               px-3 py-2 text-sm text-white focus:outline-none
+                               focus:border-sky-400">
+                  <option value="10">Top 10</option>
+                  <option value="25" selected>Top 25</option>
+                  <option value="50">Top 50</option>
+                  <option value="100">Top 100</option>
+                  <option value="250">Top 250</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-gray-400 mb-1 block">Sort</label>
+                <select id="sortMode"
+                        onchange="buildChart()"
+                        class="w-full bg-slate-800 border border-slate-700 rounded-lg
+                               px-3 py-2 text-sm text-white focus:outline-none
+                               focus:border-sky-400">
+                  <option value="auto" selected>Auto</option>
+                  <option value="value-desc">Value High to Low</option>
+                  <option value="value-asc">Value Low to High</option>
+                  <option value="label-asc">Label A to Z</option>
+                  <option value="label-desc">Label Z to A</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="pieColumnsWrapper" class="hidden mt-4">
+              <label class="text-xs text-gray-400 mb-2 block">Pie Columns (Multiple Select)</label>
+              <div class="flex gap-2 mb-3">
+                <button onclick="setPieMode('separate')"
+                        id="btn-pie-separate"
+                        class="chart-type-btn active bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg text-xs text-gray-200">
+                  Separate
+                </button>
+                <button onclick="setPieMode('combined')"
+                        id="btn-pie-combined"
+                        class="chart-type-btn bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg text-xs text-gray-200">
+                  Combined
+                </button>
+              </div>
+              <div id="pieColumnsList" class="grid grid-cols-1 gap-2 max-h-56 overflow-y-auto pr-1"></div>
+              <p class="text-[11px] text-gray-500 mt-2">
+                Pie mode me jitne chahe columns select karo. Separate me alag charts, Combined me sab ek pie chart me merge honge.
+              </p>
+            </div>
+          </div>
+
+          <!-- Color Theme -->
+          <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800">
+            <p class="text-sm font-semibold text-gray-300 mb-3">Color Theme</p>
+            <div class="flex gap-2 flex-wrap">
+              <button onclick="setTheme('blue')"
+                      class="w-8 h-8 rounded-full bg-sky-500 ring-2 ring-sky-300"
+                      title="Blue"></button>
+              <button onclick="setTheme('purple')"
+                      class="w-8 h-8 rounded-full bg-purple-500"
+                      title="Purple"></button>
+              <button onclick="setTheme('green')"
+                      class="w-8 h-8 rounded-full bg-emerald-500"
+                      title="Green"></button>
+              <button onclick="setTheme('orange')"
+                      class="w-8 h-8 rounded-full bg-orange-500"
+                      title="Orange"></button>
+              <button onclick="setTheme('multi')"
+                      class="w-8 h-8 rounded-full bg-gradient-to-r from-sky-400 via-purple-400 to-pink-400"
+                      title="Multi"></button>
+            </div>
+          </div>
+
+          <!-- Quick Stats -->
+          <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800">
+            <p class="text-sm font-semibold text-gray-300 mb-3">Quick Stats</p>
+            <div class="space-y-2 text-sm" id="quickStats">
+              <div class="flex justify-between">
+                <span class="text-gray-400">Min</span>
+                <span class="text-white font-medium" id="statMin">—</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-400">Max</span>
+                <span class="text-white font-medium" id="statMax">—</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-400">Average</span>
+                <span class="text-white font-medium" id="statAvg">—</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-400">Total</span>
+                <span class="text-white font-medium" id="statSum">—</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800">
+            <p class="text-sm font-semibold text-gray-300 mb-3">Advanced Metrics</p>
+            <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              <div class="flex justify-between gap-3"><span class="text-gray-400">Median</span><span class="text-white font-medium" id="statMedian">--</span></div>
+              <div class="flex justify-between gap-3"><span class="text-gray-400">Mode</span><span class="text-white font-medium" id="statMode">--</span></div>
+              <div class="flex justify-between gap-3"><span class="text-gray-400">Variance</span><span class="text-white font-medium" id="statVariance">--</span></div>
+              <div class="flex justify-between gap-3"><span class="text-gray-400">Std Dev</span><span class="text-white font-medium" id="statStdDev">--</span></div>
+              <div class="flex justify-between gap-3"><span class="text-gray-400">Q1</span><span class="text-white font-medium" id="statQ1">--</span></div>
+              <div class="flex justify-between gap-3"><span class="text-gray-400">Q3</span><span class="text-white font-medium" id="statQ3">--</span></div>
+              <div class="flex justify-between gap-3"><span class="text-gray-400">P90</span><span class="text-white font-medium" id="statP90">--</span></div>
+              <div class="flex justify-between gap-3"><span class="text-gray-400">Growth %</span><span class="text-white font-medium" id="statGrowth">--</span></div>
+              <div class="flex justify-between gap-3"><span class="text-gray-400">Skewness</span><span class="text-white font-medium" id="statSkewness">--</span></div>
+              <div class="flex justify-between gap-3"><span class="text-gray-400">Kurtosis</span><span class="text-white font-medium" id="statKurtosis">--</span></div>
+              <div class="flex justify-between gap-3"><span class="text-gray-400">Correlation</span><span class="text-white font-medium" id="statCorrelation">--</span></div>
+              <div class="flex justify-between gap-3"><span class="text-gray-400">Forecast</span><span class="text-white font-medium" id="statForecast">--</span></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ── RIGHT: Chart Display ──────────────────────── -->
+        <div class="xl:col-span-2 space-y-5">
+
+          <!-- Chart Card -->
+          <div class="bg-slate-900 rounded-2xl p-6 border border-slate-800">
+
+            <!-- Chart toolbar -->
+            <div class="flex items-center justify-between gap-3 flex-wrap mb-5">
+              <p class="font-semibold" id="chartTitle">Bar Chart</p>
+              <div class="flex items-center gap-2">
+                <button onclick="saveCurrentChart()"
+                        id="saveChartBtn"
+                        class="flex items-center gap-2 bg-sky-500 hover:bg-sky-400
+                               text-black border border-sky-400 px-3 py-1.5 rounded-lg text-sm font-semibold transition">
+                  Save Graph
+                </button>
+                <button onclick="downloadChart()"
+                        class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700
+                               border border-slate-700 px-3 py-1.5 rounded-lg text-sm transition">
+                  ⬇️ Download PNG
+                </button>
+              </div>
+            </div>
+            <p id="chartMeta" class="text-xs text-gray-400 mb-3">
+              Selected axis ke hisaab se grouped chart show hoga.
+            </p>
+            <p id="chartMessage" class="hidden text-xs rounded-lg px-3 py-2 mb-3"></p>
+
+            <!-- Canvas -->
+            <div id="singleChartWrap" class="relative overflow-auto" style="height: 420px;">
+              <div id="chartCanvasSizer" class="h-full min-w-0">
+                <canvas id="myChart"></canvas>
+              </div>
+            </div>
+            <div id="pieChartsGrid" class="hidden grid grid-cols-1 xl:grid-cols-2 gap-4"></div>
+            <p id="pieEmptyState" class="hidden text-sm text-gray-500 mt-3">
+              Pie chart ke liye kam se kam ek column select karo.
+            </p>
+          </div>
+
+          <!-- Suggested Charts -->
+          <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800">
+            <p class="text-sm font-semibold text-gray-300 mb-3">
+              💡 Suggested Charts
+            </p>
+            <p id="recommendationSummary" class="text-xs text-gray-500 mb-3">
+              Dataset schema analyze karke smart chart suggestions yahan dikhenge.
+            </p>
+            <div id="schemaHighlights" class="flex flex-wrap gap-2 mb-3"></div>
+            <div class="space-y-2" id="suggestedCharts">
+              <!-- JS se generate hoga -->
+            </div>
+          </div>
+
+          <div class="bg-slate-900 rounded-2xl p-5 border border-slate-800">
+            <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
+              <div>
+                <p class="text-sm font-semibold text-gray-300">Saved Graphs</p>
+                <p class="text-xs text-gray-500 mt-1">
+                  Jo charts save karoge, woh image aur stats ke saath yahin dikhenge.
+                </p>
+              </div>
+              <button onclick="clearSavedCharts()"
+                      class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg text-xs transition">
+                Clear Saved
+              </button>
+            </div>
+            <div id="savedChartsEmpty" class="text-sm text-gray-500">
+              Abhi tak koi graph save nahi hua.
+            </div>
+            <div id="savedChartsGrid" class="grid grid-cols-1 xl:grid-cols-2 gap-4"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Thymeleaf se data JSON mein pass karna -->
+<!-- Backend se chartData JSON aayega -->
+<script th:inline="javascript">
+  const RAW_DATA    = /*[[${chartData}]]*/ [];
+  const ALL_HEADERS = /*[[${headers}]]*/  [];
+</script>
+
+<script>
+  if (window.lucide) {
+    lucide.createIcons();
+  }
+
+  const CHART_ROWS = Array.isArray(RAW_DATA)
+    ? RAW_DATA
+    : (() => {
+        try {
+          return RAW_DATA ? JSON.parse(RAW_DATA) : [];
+        } catch (error) {
+          console.error('Invalid chart data payload', error);
+          return [];
+        }
+      })();
+
+  // ── State ────────────────────────────────────────────────
+  let currentChart  = null;
+  let currentPieCharts = [];
+  let currentType   = 'bar';
+  let currentTheme  = 'blue';
+  let selectedPieColumns = [];
+  let currentPieMode = 'separate';
+  const NUMERIC_HEADERS = ALL_HEADERS.filter(isNumericHeader);
+
+  // ── Color Themes ─────────────────────────────────────────
+  const THEMES = {
+    blue:   ['#38bdf8','#0ea5e9','#0284c7','#0369a1','#075985'],
+    purple: ['#a78bfa','#8b5cf6','#7c3aed','#6d28d9','#5b21b6'],
+    green:  ['#34d399','#10b981','#059669','#047857','#065f46'],
+    orange: ['#fb923c','#f97316','#ea580c','#c2410c','#9a3412'],
+    multi:  ['#38bdf8','#a78bfa','#34d399','#fb923c','#f472b6',
+             '#facc15','#4ade80','#60a5fa','#f87171','#c084fc'],
+  };
+
+  // ── Chart Type Set ───────────────────────────────────────
+  function setChartType(type) {
+    currentType = type;
+
+    // Button active state
+    ['bar','line','pie','scatter'].forEach(t => {
+      document.getElementById('btn-' + t).classList.remove('active');
+    });
+    document.getElementById('btn-' + type).classList.add('active');
+
+    const isPie = type === 'pie';
+    document.getElementById('yAxisWrapper').style.display = isPie ? 'none' : 'block';
+    document.getElementById('xAxis').parentElement.style.display = isPie ? 'none' : 'block';
+    document.getElementById('pieColumnsWrapper').classList.toggle('hidden', !isPie);
+
+    buildChart();
+  }
+
+  // ── Theme Set ────────────────────────────────────────────
+  function setTheme(theme) {
+    currentTheme = theme;
+    buildChart();
+  }
+
+  function setPieMode(mode) {
+    currentPieMode = mode;
+    ['separate', 'combined'].forEach(type => {
+      document.getElementById('btn-pie-' + type).classList.remove('active');
+    });
+    document.getElementById('btn-pie-' + mode).classList.add('active');
+    buildChart();
+  }
+
+  function isNumericHeader(header) {
+    if (!CHART_ROWS || !CHART_ROWS.length) return false;
+    const nums = CHART_ROWS
+      .map(row => parseFloat(String(row[header] ?? '').replace(/[^\d.-]/g, '')))
+      .filter(value => !isNaN(value));
+    return nums.length > CHART_ROWS.length * 0.5;
+  }
+
+  function ensureNumericYAxis() {
+    const ySelect = document.getElementById('yAxis');
+    if (!ySelect) return null;
+
+    const preferred = NUMERIC_HEADERS.length ? NUMERIC_HEADERS[0] : ySelect.value;
+    if (!NUMERIC_HEADERS.includes(ySelect.value) && preferred) {
+      ySelect.value = preferred;
+    }
+    return ySelect.value;
+  }
+
+  // ── Build Chart ──────────────────────────────────────────
+  function buildChart() {
+    const xCol = document.getElementById('xAxis').value;
+    const yCol = ensureNumericYAxis();
+
+    if (!CHART_ROWS || CHART_ROWS.length === 0) return;
+
+    if (currentType === 'pie') {
+      buildPieCharts();
+      updateSuggested(xCol, yCol);
+      return;
+    }
+
+    // X labels
+    const labels = CHART_ROWS.map(row => row[xCol] ?? '—');
+
+    // Y values
+    const yValues = CHART_ROWS.map(row => {
+      const v = row[yCol];
+      return v != null ? parseFloat(String(v).replace(/[₹,\s]/g, '')) || 0 : 0;
+    });
+
+    const xValues = CHART_ROWS.map((row, index) => {
+      const raw = row[xCol];
+      const parsed = parseFloat(String(raw ?? '').replace(/[^\d.-]/g, ''));
+      return Number.isFinite(parsed) ? parsed : index + 1;
+    });
+
+    // Quick stats calculate
+    updateStats(yValues, xValues);
+
+    // Chart title
+    const typeNames = { bar:'Bar', line:'Line', pie:'Pie', scatter:'Scatter' };
+    document.getElementById('chartTitle').textContent =
+      typeNames[currentType] + ' Chart — ' + xCol +
+      (yCol && currentType !== 'pie' ? ' vs ' + yCol : '');
+
+    const colors = THEMES[currentTheme];
+
+    // Dataset config
+    let datasets;
+
+    if (currentType === 'scatter') {
+      datasets = [{
+        label: xCol + ' vs ' + yCol,
+        data: labels.map((x, i) => ({
+          x: parseFloat(String(x).replace(/[₹,\s]/g, '')) || i,
+          y: yValues[i]
+        })),
+        backgroundColor: colors[0] + 'aa',
+        borderColor: colors[0],
+        pointRadius: 5,
+        pointHoverRadius: 7,
+      }];
+
+      renderChart([], datasets);
+
+    } else {
+      // Bar / Line
+      datasets = [{
+        label: yCol,
+        data: yValues,
+        backgroundColor: currentType === 'line'
+          ? colors[0] + '33'
+          : labels.map((_, i) => colors[i % colors.length]),
+        borderColor: colors[0],
+        borderWidth: currentType === 'line' ? 2 : 0,
+        fill: currentType === 'line',
+        tension: 0.4,
+        borderRadius: currentType === 'bar' ? 6 : 0,
+      }];
+
+      renderChart(labels, datasets);
+    }
+
+    // Suggested charts update
+    updateSuggested(xCol, yCol);
+  }
+
+  // ── Render Chart ─────────────────────────────────────────
+  function renderChart(labels, datasets) {
+    const ctx = document.getElementById('myChart').getContext('2d');
+
+    destroyPieCharts();
+    document.getElementById('singleChartWrap').classList.remove('hidden');
+    document.getElementById('pieChartsGrid').classList.add('hidden');
+    document.getElementById('pieEmptyState').classList.add('hidden');
+
+    if (currentChart) {
+      currentChart.destroy();
+    }
+
+    const isScatter = currentType === 'scatter';
+    const isPie     = currentType === 'pie';
+
+    currentChart = new Chart(ctx, {
+      type: currentType,
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: isPie,
+            labels: { color: '#94a3b8', font: { size: 12 } }
+          },
+          tooltip: {
+            backgroundColor: '#1e293b',
+            titleColor: '#e2e8f0',
+            bodyColor: '#94a3b8',
+            borderColor: '#334155',
+            borderWidth: 1,
+          }
+        },
+        scales: isPie || isScatter ? {} : {
+          x: {
+            ticks: { color: '#64748b', font: { size: 11 } },
+            grid:  { color: '#1e293b' },
+          },
+          y: {
+            ticks: { color: '#64748b', font: { size: 11 } },
+            grid:  { color: '#1e293b' },
+            beginAtZero: true,
+          }
+        }
+      }
+    });
+  }
+
+  // ── Quick Stats ──────────────────────────────────────────
+  // Quick Stats
+  function updateStats(values, xValues = []) {
+    const nums = values.filter(v => !isNaN(v) && v !== 0);
+    if (nums.length === 0) {
+      resetStats();
+      return;
+    }
+
+    const min = Math.min(...nums);
+    const max = Math.max(...nums);
+    const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
+    const sum = nums.reduce((a, b) => a + b, 0);
+
+    document.getElementById('statMin').textContent = fmt(min);
+    document.getElementById('statMax').textContent = fmt(max);
+    document.getElementById('statAvg').textContent = fmt(avg);
+    document.getElementById('statSum').textContent = fmt(sum);
+    document.getElementById('statMedian').textContent = fmt(calcPercentile(nums, 50));
+    document.getElementById('statMode').textContent = fmt(calcMode(nums));
+    document.getElementById('statVariance').textContent = fmt(calcVariance(nums));
+    document.getElementById('statStdDev').textContent = fmt(calcStdDev(nums));
+    document.getElementById('statQ1').textContent = fmt(calcPercentile(nums, 25));
+    document.getElementById('statQ3').textContent = fmt(calcPercentile(nums, 75));
+    document.getElementById('statP90').textContent = fmt(calcPercentile(nums, 90));
+    document.getElementById('statGrowth').textContent = fmt(calcGrowth(nums)) + '%';
+    document.getElementById('statSkewness').textContent = fmt(calcSkewness(nums));
+    document.getElementById('statKurtosis').textContent = fmt(calcKurtosis(nums));
+    document.getElementById('statForecast').textContent = fmt(calcForecast(nums));
+    document.getElementById('statCorrelation').textContent =
+      xValues.length === nums.length ? fmt(calcCorrelation(xValues, nums)) : '--';
+  }
+
+  function resetStats() {
+    [
+      'statMin','statMax','statAvg','statSum','statMedian','statMode','statVariance',
+      'statStdDev','statQ1','statQ3','statP90','statGrowth','statSkewness',
+      'statKurtosis','statCorrelation','statForecast'
+    ].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = '--';
+    });
+  }
+
+  function calcMode(nums) {
+    const freq = new Map();
+    nums.forEach(n => {
+      const key = Math.round(n * 100) / 100;
+      freq.set(key, (freq.get(key) || 0) + 1);
+    });
+    let mode = nums[0];
+    let maxCount = 0;
+    freq.forEach((count, key) => {
+      if (count > maxCount) {
+        maxCount = count;
+        mode = key;
+      }
+    });
+    return Number(mode);
+  }
+
+  function calcVariance(nums) {
+    if (nums.length < 2) return 0;
+    const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
+    return nums.reduce((sum, n) => sum + Math.pow(n - avg, 2), 0) / (nums.length - 1);
+  }
+
+  function calcStdDev(nums) {
+    return Math.sqrt(calcVariance(nums));
+  }
+
+  function calcPercentile(nums, p) {
+    const sorted = [...nums].sort((a, b) => a - b);
+    const pos = (p / 100) * (sorted.length - 1);
+    const lower = Math.floor(pos);
+    const upper = Math.ceil(pos);
+    if (lower === upper) return sorted[lower];
+    const weight = pos - lower;
+    return sorted[lower] * (1 - weight) + sorted[upper] * weight;
+  }
+
+  function calcGrowth(nums) {
+    if (nums.length < 2 || nums[0] === 0) return 0;
+    return ((nums[nums.length - 1] - nums[0]) / nums[0]) * 100;
+  }
+
+  function calcSkewness(nums) {
+    if (nums.length < 3) return 0;
+    const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
+    const std = calcStdDev(nums);
+    if (std === 0) return 0;
+    const n = nums.length;
+    const third = nums.reduce((sum, nVal) => sum + Math.pow((nVal - avg) / std, 3), 0);
+    return (n / ((n - 1) * (n - 2))) * third;
+  }
+
+  function calcKurtosis(nums) {
+    if (nums.length < 4) return 0;
+    const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
+    const std = calcStdDev(nums);
+    if (std === 0) return 0;
+    const n = nums.length;
+    const fourth = nums.reduce((sum, nVal) => sum + Math.pow((nVal - avg) / std, 4), 0);
+    const numerator = (n * (n + 1) * fourth) - (3 * Math.pow(n - 1, 3));
+    const denominator = (n - 1) * (n - 2) * (n - 3);
+    return denominator === 0 ? 0 : numerator / denominator;
+  }
+
+  function calcCorrelation(x, y) {
+    if (x.length < 2 || x.length !== y.length) return 0;
+    const avgX = x.reduce((a, b) => a + b, 0) / x.length;
+    const avgY = y.reduce((a, b) => a + b, 0) / y.length;
+    let num = 0;
+    let sumSqX = 0;
+    let sumSqY = 0;
+    for (let i = 0; i < x.length; i++) {
+      const dx = x[i] - avgX;
+      const dy = y[i] - avgY;
+      num += dx * dy;
+      sumSqX += dx * dx;
+      sumSqY += dy * dy;
+    }
+    const den = Math.sqrt(sumSqX * sumSqY);
+    return den === 0 ? 0 : num / den;
+  }
+
+  function calcForecast(nums) {
+    if (nums.length < 3) return nums[nums.length - 1] || 0;
+    const recent = nums.slice(-3);
+    return recent.reduce((a, b) => a + b, 0) / recent.length;
+  }
+
+  function fmt(n) {
+    return new Intl.NumberFormat('en-IN').format(Math.round(n * 100) / 100);
+  }
+
+  // ── Suggested Charts ─────────────────────────────────────
+  function updateSuggested(xCol, yCol) {
+    const suggestions = [
+      { icon: '📊', label: `Bar: ${xCol} vs ${yCol}`,  type: 'bar'     },
+      { icon: '📈', label: `Line: ${xCol} trend`,       type: 'line'    },
+      { icon: '🥧', label: `Pie: ${xCol} distribution`, type: 'pie'     },
+      { icon: '🔵', label: `Scatter: correlation`,       type: 'scatter' },
+    ];
+
+    const container = document.getElementById('suggestedCharts');
+    container.innerHTML = suggestions.map(s => `
+      <button onclick="setChartType('${s.type}')"
+              class="w-full flex items-center gap-3 px-4 py-2.5
+                     bg-slate-800 hover:bg-slate-700 rounded-xl
+                     text-sm text-gray-300 transition text-left">
+        <span>${s.icon}</span>
+        <span>${s.label}</span>
+      </button>
+    `).join('');
+  }
+
+  // ── Download Chart as PNG ─────────────────────────────────
+  function downloadChart() {
+    const pieCanvas = document.querySelector('#pieChartsGrid canvas');
+    const sourceCanvas = currentType === 'pie' ? pieCanvas : document.getElementById('myChart');
+    if (!sourceCanvas) return;
+    const a = document.createElement('a');
+    a.href = sourceCanvas.toDataURL('image/png');
+    a.download = 'chart.png';
+    a.click();
+  }
+
+  function renderPieColumnSelector() {
+    const container = document.getElementById('pieColumnsList');
+    if (!container) return;
+
+    container.innerHTML = ALL_HEADERS.map(header => `
+      <label class="flex items-center justify-between gap-3 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2">
+        <span class="text-sm text-gray-200 truncate">${header}</span>
+        <input type="checkbox"
+               value="${escapeAttr(header)}"
+               ${selectedPieColumns.includes(header) ? 'checked' : ''}
+               onchange="togglePieColumn('${escapeJs(header)}', this.checked)"
+               class="w-4 h-4 accent-sky-400">
+      </label>
+    `).join('');
+  }
+
+  function togglePieColumn(column, checked) {
+    if (checked) {
+      if (!selectedPieColumns.includes(column)) selectedPieColumns.push(column);
+    } else {
+      selectedPieColumns = selectedPieColumns.filter(item => item !== column);
+    }
+    buildChart();
+  }
+
+  function buildPieCharts() {
+    if (currentChart) {
+      currentChart.destroy();
+      currentChart = null;
+    }
+
+    const grid = document.getElementById('pieChartsGrid');
+    const empty = document.getElementById('pieEmptyState');
+    document.getElementById('singleChartWrap').classList.add('hidden');
+    grid.classList.remove('hidden');
+
+    destroyPieCharts();
+    grid.innerHTML = '';
+
+    const columns = selectedPieColumns.length ? selectedPieColumns : [];
+    document.getElementById('chartTitle').textContent =
+      columns.length
+        ? `Pie Charts — ${columns.join(', ')} (${currentPieMode})`
+        : 'Pie Charts';
+
+    if (!columns.length) {
+      empty.classList.remove('hidden');
+      updateStats([]);
+      return;
+    }
+
+    empty.classList.add('hidden');
+
+    if (currentPieMode === 'combined') {
+      buildCombinedPieChart(columns, grid);
+      return;
+    }
+
+    const totals = [];
+    const colors = THEMES[currentTheme];
+
+    columns.forEach((column, index) => {
+      const grouped = {};
+
+      CHART_ROWS.forEach(row => {
+        const rawValue = row[column];
+        const label = rawValue == null || String(rawValue).trim() === '' ? 'Unknown' : String(rawValue);
+        grouped[label] = (grouped[label] || 0) + 1;
+      });
+
+      const pieLabels = Object.keys(grouped);
+      const pieValues = Object.values(grouped);
+      totals.push(...pieValues);
+
+      const card = document.createElement('div');
+      card.className = 'bg-slate-950 border border-slate-800 rounded-2xl p-4';
+      card.innerHTML = `
+        <div class="flex items-center justify-between mb-3 gap-3">
+          <p class="text-sm font-semibold text-white truncate">${column}</p>
+          <span class="text-[11px] text-gray-500">${pieLabels.length} groups</span>
+        </div>
+        <div class="relative" style="height: 280px;">
+          <canvas id="pieChart-${index}"></canvas>
+        </div>
+      `;
+      grid.appendChild(card);
+
+      const ctx = card.querySelector('canvas').getContext('2d');
+      const chart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: pieLabels,
+          datasets: [{
+            data: pieValues,
+            backgroundColor: pieLabels.map((_, i) => colors[i % colors.length]),
+            borderColor: '#0f172a',
+            borderWidth: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              labels: { color: '#94a3b8', font: { size: 11 } }
+            },
+            tooltip: {
+              backgroundColor: '#1e293b',
+              titleColor: '#e2e8f0',
+              bodyColor: '#94a3b8',
+              borderColor: '#334155',
+              borderWidth: 1,
+            }
+          }
+        }
+      });
+
+      currentPieCharts.push(chart);
+    });
+
+    updateStats(totals);
+  }
+
+  function buildCombinedPieChart(columns, grid) {
+    const grouped = {};
+    const colors = THEMES[currentTheme];
+
+    CHART_ROWS.forEach(row => {
+      columns.forEach(column => {
+        const rawValue = row[column];
+        const valueLabel = rawValue == null || String(rawValue).trim() === '' ? 'Unknown' : String(rawValue);
+        const label = `${column}: ${valueLabel}`;
+        grouped[label] = (grouped[label] || 0) + 1;
+      });
+    });
+
+    const pieLabels = Object.keys(grouped);
+    const pieValues = Object.values(grouped);
+
+    const card = document.createElement('div');
+    card.className = 'bg-slate-950 border border-slate-800 rounded-2xl p-4 xl:col-span-2';
+    card.innerHTML = `
+      <div class="flex items-center justify-between mb-3 gap-3">
+        <p class="text-sm font-semibold text-white truncate">Combined Pie</p>
+        <span class="text-[11px] text-gray-500">${columns.length} columns merged</span>
+      </div>
+      <div class="relative" style="height: 420px;">
+        <canvas id="pieChart-combined"></canvas>
+      </div>
+    `;
+    grid.appendChild(card);
+
+    const ctx = card.querySelector('canvas').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: pieLabels,
+        datasets: [{
+          data: pieValues,
+          backgroundColor: pieLabels.map((_, i) => colors[i % colors.length]),
+          borderColor: '#0f172a',
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            labels: { color: '#94a3b8', font: { size: 11 } }
+          },
+          tooltip: {
+            backgroundColor: '#1e293b',
+            titleColor: '#e2e8f0',
+            bodyColor: '#94a3b8',
+            borderColor: '#334155',
+            borderWidth: 1,
+          }
+        }
+      }
+    });
+
+    currentPieCharts.push(chart);
+    updateStats(pieValues);
+  }
+
+  function destroyPieCharts() {
+    currentPieCharts.forEach(chart => chart.destroy());
+    currentPieCharts = [];
+  }
+
+  function escapeJs(text) {
+    return String(text).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  }
+
+  function escapeAttr(text) {
+    return String(text).replace(/"/g, '&quot;');
+  }
+
+  // ── Init on load ─────────────────────────────────────────
+  // Init on load
+  window.addEventListener('load', () => {
+    if (CHART_ROWS && CHART_ROWS.length > 0) {
+      selectedPieColumns = ALL_HEADERS.slice(0, Math.min(2, ALL_HEADERS.length));
+      renderPieColumnSelector();
+      const ySelect = document.getElementById('yAxis');
+      if (ySelect && NUMERIC_HEADERS.length) {
+        ySelect.innerHTML = NUMERIC_HEADERS
+          .map(header => `<option value="${escapeAttr(header)}">${header}</option>`)
+          .join('');
+      }
+      ensureNumericYAxis();
+      buildChart();
+    }
+  });
+</script>
+
+<script th:inline="javascript">
+  window.chartPageConfig = {
+    rawData: /*[[${chartData}]]*/ [],
+    headers: /*[[${headers}]]*/ [],
+    numericHeaders: /*[[${numericHeaders}]]*/ [],
+    schemaProfiles: /*[[${schemaProfiles}]]*/ [],
+    chartRecommendations: /*[[${chartRecommendations}]]*/ [],
+    fileName: /*[[${fileName}]]*/ null,
+    chartScope: /*[[${chartScope}]]*/ 'empty',
+    totalRows: /*[[${totalRows}]]*/ 0,
+    chartRows: /*[[${chartRows}]]*/ 0,
+    largeFileMode: /*[[${largeFileMode}]]*/ false
+  };
+</script>
+<script th:src="@{/js/charts-enhanced.js}" src="/js/charts-enhanced.js"></script>
+
+</body>
+</html>
+

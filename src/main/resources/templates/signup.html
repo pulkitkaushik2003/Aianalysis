@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign Up | InsightAnalytics</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fadeUp { animation: fadeUp 1s ease forwards; }
+    .delay-1 { animation-delay: .2s }
+    .delay-2 { animation-delay: .4s }
+    .delay-3 { animation-delay: .6s }
+    .delay-4 { animation-delay: .8s }
+
+    .glow {
+      box-shadow: 0 0 30px rgba(56,189,248,0.6);
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 min-h-screen flex items-center justify-center text-white">
+
+<div class="bg-slate-900 w-full max-w-md p-10 rounded-2xl shadow-2xl animate-fadeUp">
+
+  <h1 class="text-3xl font-extrabold text-center text-sky-400 mb-2">
+    InsightAnalytics
+  </h1>
+  <p class="text-center text-gray-400 mb-6">
+    Create your account to access analytics
+  </p>
+
+  <!-- 🔥 ERROR MESSAGE -->
+   <p th:if="${error}" 
+     class="bg-red-500/20 text-red-400 text-sm p-3 rounded-lg mb-4 text-center">
+     [[${error}]]
+  </p>
+
+  
+  <!-- SIGNUP FORM -->
+  <form th:action="@{/signup}" method="post">
+
+    <!-- FULL NAME -->
+     
+    <div class="mb-4 animate-fadeUp delay-1">
+      <label class="text-gray-400 text-sm">Full Name</label>
+      <input type="text" name="fullname" th:value="${user.fullname}" required
+        placeholder="John Doe"
+        class="w-full mt-2 p-3 rounded-lg bg-slate-800 outline-none focus:ring-2 focus:ring-sky-400">
+    </div>
+
+    <!-- EMAIL -->
+    <div class="mb-4 animate-fadeUp delay-2">
+      <label class="text-gray-400 text-sm">Email Address</label>
+      <input type="email" name="email" th:value="${user.email}" required
+        placeholder="john@company.com"
+        class="w-full mt-2 p-3 rounded-lg bg-slate-800 outline-none focus:ring-2 focus:ring-sky-400">
+    </div>
+
+    <!-- CONTACT NUMBER -->
+    <div class="mb-4 animate-fadeUp delay-3">
+      <label class="text-gray-400 text-sm">Contact Number</label>
+      <input type="tel" name="contact" th:value="${user.contact}" required
+        placeholder="+91 98765 43210"
+        class="w-full mt-2 p-3 rounded-lg bg-slate-800 outline-none focus:ring-2 focus:ring-sky-400">
+    </div>
+
+    <!-- PASSWORD -->
+    <div class="mb-4 animate-fadeUp delay-4">
+      <label class="text-gray-400 text-sm">Password</label>
+      <input type="password" name="password" required
+        placeholder="••••••••"
+        class="w-full mt-2 p-3 rounded-lg bg-slate-800 outline-none focus:ring-2 focus:ring-sky-400">
+    </div>
+
+    <!-- BUTTON -->
+    <button type="submit"
+      class="w-full bg-sky-400 text-black py-3 rounded-xl font-semibold hover:scale-105 transition glow">
+      Create Account
+    </button>
+
+  </form>
+
+  <p class="text-center text-sm text-gray-400 mt-6">
+    Already have an account?
+    <a href="/login" class="text-sky-400 hover:underline">Login</a>
+  </p>
+
+  <p class="text-center text-xs text-gray-500 mt-6">
+    Demo Mode • MongoDB backend connected
+  </p>
+
+</div>
+
+</body>
+</html>

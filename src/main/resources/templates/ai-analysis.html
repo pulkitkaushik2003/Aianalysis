@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>AI Analysis | InsightAnalytics</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    .nav-active { color: #38bdf8; font-weight: 600; }
+
+    /* Chat bubbles */
+    .msg-user {
+      background: #0ea5e9;
+      color: white;
+      border-radius: 18px 18px 4px 18px;
+      max-width: 75%;
+      margin-left: auto;
+    }
+    .msg-ai {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-radius: 18px 18px 18px 4px;
+      max-width: 85%;
+      border: 1px solid #334155;
+    }
+
+    /* Typing dots */
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+      40%            { opacity: 1;   transform: scale(1); }
+    }
+    .typing-dot {
+      width: 7px; height: 7px;
+      background: #38bdf8;
+      border-radius: 50%;
+      display: inline-block;
+      animation: blink 1.2s infinite;
+    }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    /* Typewriter effect */
+    @keyframes fadeIn {
+      from { opacity:0; transform:translateY(6px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .fade-in { animation: fadeIn 0.3s ease forwards; }
+    .msg-appear { animation: fadeIn 0.4s ease forwards; }
+
+    /* Insight card hover */
+    .insight-card { transition: all 0.2s; }
+    .insight-card:hover { border-color: #38bdf8 !important; transform: translateY(-1px); }
+
+    /* Quick question btn */
+    .quick-btn {
+      transition: all 0.2s;
+      text-align: left;
+    }
+    .quick-btn:hover {
+      background: #334155;
+      border-color: #38bdf8;
+      color: #38bdf8;
+    }
+
+    /* Chat scroll */
+    #chatMessages {
+      scroll-behavior: smooth;
+    }
+
+    /* Shimmer for loading insight */
+    @keyframes shimmer {
+      0%   { background-position: -200% 0; }
+      100% { background-position:  200% 0; }
+    }
+    .shimmer {
+      background: linear-gradient(90deg, #1e293b 25%, #2d3f55 50%, #1e293b 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+
+    /* Mini table in AI response */
+    .ai-table { border-collapse: collapse; width: 100%; font-size: 12px; margin-top: 8px; }
+    .ai-table th { background: #0f172a; color: #94a3b8; padding: 6px 10px; text-align: left; }
+    .ai-table td { padding: 5px 10px; border-bottom: 1px solid #1e293b; color: #cbd5e1; }
+    .ai-table tr:hover td { background: #0f172a; }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-white">
+
+<div class="flex min-h-screen">
+
+  <!-- ── SIDEBAR ──────────────────────────────────────────── -->
+  <aside class="w-64 bg-slate-900 p-6 hidden md:flex flex-col fixed h-full">
+    <h1 class="text-2xl font-bold text-sky-400 mb-10">InsightAnalytics</h1>
+
+    <ul class="space-y-2 text-gray-300 flex-1">
+      <li>
+        <a th:href="@{/}" href="/"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          🏠 Home
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/dashboard}" href="/dashboard"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          📊 Dashboard
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/upload}" href="/upload"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          📤 Upload Data
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/charts}" href="/charts"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          📈 Charts
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/ai-analysis}" href="/ai-analysis"
+           class="nav-active flex gap-3 items-center px-3 py-2 rounded-lg bg-slate-800">
+          🤖 AI Analysis
+        </a>
+      </li>
+      <li>
+       <a th:href="@{/image-to-excel}" href="/image-to-excel"
+             class="nav-active flex items-center gap-3 rounded-lg bg-slate-800 px-3 py-2">
+            <i data-lucide="sheet" class="h-4 w-4"></i>
+            <span>Image to Excel</span>
+          </a>
+      </li>
+      <li>
+        <a th:href="@{/fix}" href="/fix"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          🔧 Data Cleaning
+        </a>
+      </li>
+    </ul>
+
+    <!-- Quick Questions -->
+    <div class="mt-6 pt-4 border-t border-slate-800">
+      <p class="text-xs text-gray-500 mb-3 uppercase tracking-wider">Quick Questions</p>
+      <div class="space-y-2">
+        <button onclick="askQuick('Is data ka summary batao')"
+                class="quick-btn w-full text-left text-xs text-gray-300 px-3 py-2
+                       rounded-lg border border-slate-700 bg-slate-800">
+          📋 Summarize this data
+        </button>
+        <button onclick="askQuick('Is data mein anomalies ya outliers dhundho')"
+                class="quick-btn w-full text-left text-xs text-gray-300 px-3 py-2
+                       rounded-lg border border-slate-700 bg-slate-800">
+          🔍 Find anomalies
+        </button>
+        <button onclick="askQuick('Top performers kaun hain is data mein')"
+                class="quick-btn w-full text-left text-xs text-gray-300 px-3 py-2
+                       rounded-lg border border-slate-700 bg-slate-800">
+          🏆 Show top performers
+        </button>
+        <button onclick="askQuick('Is data ka ek detailed report banao')"
+                class="quick-btn w-full text-left text-xs text-gray-300 px-3 py-2
+                       rounded-lg border border-slate-700 bg-slate-800">
+          📄 Generate report
+        </button>
+        <button onclick="askQuick('Kaunse trends is data mein visible hain')"
+                class="quick-btn w-full text-left text-xs text-gray-300 px-3 py-2
+                       rounded-lg border border-slate-700 bg-slate-800">
+          📈 Show trends
+        </button>
+        <button onclick="askQuick('Is data ka future prediction karo')"
+                class="quick-btn w-full text-left text-xs text-gray-300 px-3 py-2
+                       rounded-lg border border-slate-700 bg-slate-800">
+          🔮 Predict next values
+        </button>
+      </div>
+    </div>
+
+    <div class="text-xs text-slate-500 mt-4 pt-4 border-t border-slate-800">
+      <!-- Claude branding removed -->
+      <p th:if="${fileName}" class="text-slate-400 truncate mt-1">
+        📄 <span th:text="${fileName}">data.csv</span>
+      </p>
+    </div>
+  </aside>
+
+  <!-- ── MAIN ─────────────────────────────────────────────── -->
+  <main class="flex-1 md:ml-64 flex flex-col h-screen">
+
+    <!-- TOP BAR -->
+    <div class="p-6 pb-4 border-b border-slate-800 bg-slate-950">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-2xl font-bold mb-1">AI Analysis</h2>
+          <p class="text-gray-400 text-sm">AI se apne data ke baare mein poochho</p>
+        </div>
+        <div class="hidden lg:flex items-center gap-2 text-[11px] text-slate-400">
+          <span class="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
+            Saved chats: <b class="text-sky-300" id="savedChatCount" th:text="${savedChatCount}">0</b>
+          </span>
+          <span class="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
+            Saved charts: <b class="text-emerald-300" id="savedChartCount" th:text="${savedChartCount}">0</b>
+          </span>
+        </div>
+        <button onclick="generateReport()"
+                class="flex items-center gap-2 bg-sky-500 hover:bg-sky-400
+                       text-black font-semibold px-5 py-2.5 rounded-xl text-sm transition">
+          📄 Generate Full Report
+        </button>
+      </div>
+
+      <!-- KEY INSIGHTS CARDS -->
+      <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3"
+           id="insightCards">
+
+        <!-- Cards will be generated by JS from data -->
+        <!-- Skeleton loaders while loading -->
+        <div class="shimmer h-20 rounded-xl"></div>
+        <div class="shimmer h-20 rounded-xl"></div>
+        <div class="shimmer h-20 rounded-xl"></div>
+        <div class="shimmer h-20 rounded-xl"></div>
+      </div>
+    </div>
+
+    <!-- CHAT AREA -->
+    <div class="flex-1 overflow-y-auto p-6 space-y-4" id="chatMessages">
+
+      <!-- Welcome message -->
+      <div class="flex gap-3 msg-appear">
+        <div class="w-8 h-8 rounded-full bg-sky-500 flex items-center
+                    justify-center text-black font-bold text-sm flex-shrink-0">
+          AI
+        </div>
+        <div class="msg-ai px-4 py-3">
+          <p class="text-sm font-semibold text-sky-400 mb-1">InsightAnalytics AI</p>
+          <p class="text-sm text-gray-300">
+            Namaste! 👋 Main aapke data ka AI analyst hoon.
+            Aap mujhse apne data ke baare mein kuch bhi poochh sakte ho —
+            trends, patterns, anomalies, predictions sab kuch!
+          </p>
+          <p class="text-xs text-gray-500 mt-2">
+            💡 Left sidebar mein quick questions hain — wahan se shuru karo!
+          </p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- CHAT INPUT -->
+    <div class="p-4 border-t border-slate-800 bg-slate-900">
+      <div class="flex gap-3 items-end max-w-4xl mx-auto">
+
+        <div class="flex-1 relative">
+          <textarea id="chatInput"
+                    placeholder="Apna question yahan likho... (Enter = send)"
+                    rows="1"
+                    onkeydown="handleKey(event)"
+                    oninput="autoResize(this)"
+                    class="w-full bg-slate-800 border border-slate-700 rounded-2xl
+                           px-4 py-3 text-sm text-white resize-none
+                           focus:outline-none focus:border-sky-400
+                           placeholder-gray-500 leading-relaxed">
+          </textarea>
+        </div>
+
+        <button onclick="sendMessage()"
+                id="sendBtn"
+                class="bg-sky-500 hover:bg-sky-400 text-black font-bold
+                       px-5 py-3 rounded-2xl transition flex items-center gap-2 text-sm
+                       disabled:opacity-50 disabled:cursor-not-allowed">
+          Send ↗
+        </button>
+      </div>
+      <p class="text-xs text-gray-600 text-center mt-2">
+        AI · Data is processed securely · Not stored permanently
+      </p>
+    </div>
+
+  </main>
+</div>
+
+<!-- Report loading overlay -->
+<div id="reportOverlay"
+     class="fixed inset-0 bg-black/70 z-50 hidden items-center justify-center">
+  <div class="bg-slate-900 border border-slate-700 rounded-2xl p-8 text-center max-w-sm">
+    <div class="text-4xl mb-4">📄</div>
+    <p class="font-semibold mb-2">Report Generate Ho Rahi Hai...</p>
+    <p class="text-gray-400 text-sm mb-4">AI data analyze kar raha hai</p>
+    <div class="flex justify-center gap-2">
+      <span class="typing-dot"></span>
+      <span class="typing-dot"></span>
+      <span class="typing-dot"></span>
+    </div>
+  </div>
+</div>
+
+<!-- Thymeleaf data pass -->
+<script th:inline="javascript">
+  /*<![CDATA[*/
+  const RAW_DATA    = /*[[${chartData}]]*/ [];
+  const ALL_HEADERS = /*[[${headers}]]*/ [];
+  const FILE_NAME   = /*[[${fileName}]]*/ '';
+  const ROW_COUNT   = /*[[${rowCount}]]*/ 0;
+  const COL_COUNT   = /*[[${colCount}]]*/ 0;
+  const ISSUE_COUNT = /*[[${issueCount}]]*/ 0;
+  const CLEAN_ROWS  = /*[[${cleanRows}]]*/ 0;
+  const SAVED_CHAT_COUNT = /*[[${savedChatCount}]]*/ 0;
+  const SAVED_CHART_COUNT = /*[[${savedChartCount}]]*/ 0;
+  /*]]>*/
+</script>
+
+<script>
+  lucide.createIcons();
+
+  let isLoading = false;
+  let parsedData = [];
+
+  // ── Init ─────────────────────────────────────────────────
+  window.addEventListener('load', () => {
+    // Parse data
+    if (typeof RAW_DATA === 'string') {
+      try { parsedData = JSON.parse(RAW_DATA); } catch(e) { parsedData = []; }
+    } else {
+      parsedData = RAW_DATA || [];
+    }
+
+    generateInsightCards();
+  });
+
+  // ── Insight Cards ────────────────────────────────────────
+  function generateInsightCards() {
+    const container = document.getElementById('insightCards');
+
+    if (!parsedData || parsedData.length === 0) {
+      container.innerHTML = `
+        <div class="col-span-4 text-center text-gray-500 text-sm py-4">
+          📂 Pehle data upload karo — phir insights milenge
+        </div>`;
+      return;
+    }
+
+    const insights = [];
+
+    // 1. Total rows
+    insights.push({
+      icon: '📊', label: 'Total Records',
+      value: ROW_COUNT || parsedData.length,
+      color: 'sky', sub: COL_COUNT + ' columns'
+    });
+
+    // 2. Clean rows
+    insights.push({
+      icon: '✅', label: 'Clean Rows',
+      value: CLEAN_ROWS || parsedData.length,
+      color: 'emerald',
+      sub: ISSUE_COUNT + ' issues found'
+    });
+
+    // 3. Numeric column stats
+    const numCol = findBestNumericCol();
+    if (numCol) {
+      const vals = parsedData
+        .map(r => parseFloat(String(r[numCol.col] ?? '').replace(/[₹,]/g,'')))
+        .filter(n => !isNaN(n));
+      const total = vals.reduce((a,b)=>a+b,0);
+      insights.push({
+        icon: '💰', label: 'Total ' + numCol.col,
+        value: '₹' + formatNum(total),
+        color: 'amber', sub: 'Sum of ' + vals.length + ' values'
+      });
+
+      // Max value row
+      const maxVal = Math.max(...vals);
+      const maxIdx = vals.indexOf(maxVal);
+      const maxRow = parsedData[maxIdx];
+      const textCol = ALL_HEADERS.find(h => h !== numCol.col);
+      if (textCol && maxRow) {
+        insights.push({
+          icon: '🏆', label: 'Highest ' + numCol.col,
+          value: maxRow[textCol] ?? 'Row ' + (maxIdx+1),
+          color: 'purple',
+          sub: '₹' + formatNum(maxVal)
+        });
+      }
+    }
+
+    // 4. Issues card
+    if (ISSUE_COUNT > 0) {
+      insights.push({
+        icon: '⚠️', label: 'Issues Detected',
+        value: ISSUE_COUNT,
+        color: 'red', sub: 'Need cleaning'
+      });
+    }
+
+    // Render cards
+    container.innerHTML = insights.map(ins => {
+      const colors = {
+        sky:     'border-sky-500/30 text-sky-400',
+        emerald: 'border-emerald-500/30 text-emerald-400',
+        amber:   'border-amber-500/30 text-amber-400',
+        purple:  'border-purple-500/30 text-purple-400',
+        red:     'border-red-500/30 text-red-400',
+      };
+      return `
+        <div class="insight-card bg-slate-900 border ${colors[ins.color]}
+                    rounded-xl p-4 cursor-pointer fade-in"
+             onclick="askQuick('${ins.label} ke baare mein aur detail do')">
+          <div class="flex items-center justify-between mb-1">
+            <p class="text-xs text-gray-400">${ins.label}</p>
+            <span class="text-lg">${ins.icon}</span>
+          </div>
+          <p class="text-xl font-bold ${colors[ins.color].split(' ')[1]}">${ins.value}</p>
+          <p class="text-xs text-gray-500 mt-1">${ins.sub}</p>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Find best numeric column ─────────────────────────────
+  function findBestNumericCol() {
+    if (!parsedData.length || !ALL_HEADERS.length) return null;
+
+    for (const col of ALL_HEADERS) {
+      const nums = parsedData
+        .map(r => parseFloat(String(r[col] ?? '').replace(/[₹,]/g,'')))
+        .filter(n => !isNaN(n));
+      if (nums.length > parsedData.length * 0.5) return { col, nums };
+    }
+    return null;
+  }
+
+  // ── Format number ────────────────────────────────────────
+  function formatNum(n) {
+    return new Intl.NumberFormat('en-IN').format(Math.round(n));
+  }
+
+  // ── Handle keyboard ──────────────────────────────────────
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+
+  // ── Auto resize textarea ─────────────────────────────────
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }
+
+  // ── Quick question ───────────────────────────────────────
+  function askQuick(question) {
+    document.getElementById('chatInput').value = question;
+    sendMessage();
+  }
+
+  // ── Send message ─────────────────────────────────────────
+  // ── Build data summary ────────────────────────
+  function buildDataSummary() {
+    if (!parsedData.length) return 'No data available';
+
+    const sample = parsedData.slice(0, 20);
+    let summary = ALL_HEADERS.join(' | ') + '\n';
+    sample.forEach(row => {
+      summary += ALL_HEADERS.map(h => row[h] ?? '—').join(' | ') + '\n';
+    });
+
+    // Add stats
+    const numCol = findBestNumericCol();
+    if (numCol) {
+      const vals = numCol.nums;
+      summary += `\nStats for ${numCol.col}:`;
+      summary += ` Min=${Math.min(...vals)}, Max=${Math.max(...vals)}`;
+      summary += `, Avg=${(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2)}`;
+    }
+
+    return summary;
+  }
+
+  // ── Append message ───────────────────────────────────────
+  function appendMessage(type, text, source = null, meta = {}) {
+    const chat = document.getElementById('chatMessages');
+    const div  = document.createElement('div');
+
+    if (type === 'user') {
+      div.className = 'flex justify-end msg-appear';
+      div.innerHTML = `
+        <div class="msg-user px-4 py-3">
+          <p class="text-sm">${escapeHtml(text)}</p>
+        </div>`;
+    } else {
+      const sourceBadge = source === 'gemini'
+          ? '<span class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-sky-900/50 text-sky-300 border border-sky-700">Gemini</span>'
+        : source === 'error'
+          ? '<span class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-red-900/50 text-red-300 border border-red-700">Error</span>'
+          : '';
+      const canSave = meta && meta.question && source !== 'error';
+      div.className = 'flex gap-3 msg-appear';
+      div.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-sky-500 flex items-center
+                    justify-center text-black font-bold text-sm flex-shrink-0 mt-1">
+          AI
+        </div>
+        <div class="msg-ai px-4 py-3 flex-1">
+          <p class="text-xs font-semibold text-sky-400 mb-2">InsightAnalytics AI ${sourceBadge}</p>
+          <div class="text-sm text-gray-200 ai-content">${formatAiText(text)}</div>
+          <div class="flex items-center gap-3 mt-3">
+            <p class="text-xs text-gray-600">${new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'})}</p>
+            ${canSave ? '<button onclick="saveChatFromBubble(this)" class="text-[11px] rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 text-sky-300 px-2.5 py-1 transition">Save chat</button>' : ''}
+          </div>
+        </div>`;
+      if (canSave) {
+        div.dataset.question = meta.question || '';
+        div.dataset.answer = text || '';
+        div.dataset.mode = source || 'ai';
+      }
+    }
+
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  // ── Format AI text (markdown-like) ───────────────────────
+  function formatAiText(text) {
+    return text
+      // Headers
+      .replace(/^## (.+)$/gm, '<p class="text-sky-400 font-bold text-base mt-3 mb-1">$1</p>')
+      .replace(/^### (.+)$/gm, '<p class="text-gray-300 font-semibold mt-2 mb-1">$1</p>')
+      // Bold
+      .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white">$1</strong>')
+      // Tables (| col | col |)
+      .replace(/(\|.+\|\n)+/g, match => {
+        const rows = match.trim().split('\n').filter(r => !r.match(/^\|[-\s|]+\|$/));
+        let html = '<div class="overflow-x-auto mt-2"><table class="ai-table">';
+        rows.forEach((row, i) => {
+          const cells = row.split('|').filter(c => c.trim());
+          const tag = i === 0 ? 'th' : 'td';
+          html += '<tr>' + cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('') + '</tr>';
+        });
+        html += '</table></div>';
+        return html;
+      })
+      // Bullet points
+      .replace(/^- (.+)$/gm, '<li class="text-gray-300 ml-4 list-disc">$1</li>')
+      .replace(/(<li.+<\/li>\n?)+/g, m => `<ul class="space-y-1 my-2">${m}</ul>`)
+      // Line breaks
+      .replace(/\n\n/g, '<br><br>')
+      .replace(/\n/g, '<br>');
+  }
+
+  // ── Show typing ──────────────────────────────────────────
+  function showTyping() {
+    const chat = document.getElementById('chatMessages');
+    const id   = 'typing-' + Date.now();
+    const div  = document.createElement('div');
+    div.id = id;
+    div.className = 'flex gap-3';
+    div.innerHTML = `
+      <div class="w-8 h-8 rounded-full bg-sky-500 flex items-center
+                  justify-center text-black font-bold text-sm flex-shrink-0">
+        AI
+      </div>
+      <div class="msg-ai px-4 py-3">
+        <p class="text-xs font-semibold text-sky-400 mb-2">InsightAnalytics AI</p>
+        <div class="flex gap-1.5 items-center py-1">
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+        </div>
+      </div>`;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+    return id;
+  }
+
+  // ── Remove typing ────────────────────────────────────────
+  function removeTyping(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  }
+
+  // ── Generate Report (PDF) ────────────────────────────────
+  async function saveChatFromBubble(button) {
+    const bubble = button.closest('[data-question]');
+    if (!bubble) return;
+
+    button.disabled = true;
+    const oldLabel = button.textContent;
+    button.textContent = 'Saving...';
+
+    try {
+      const response = await fetch('/ai-analysis/save-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: bubble.dataset.question || '',
+          answer: bubble.dataset.answer || '',
+          mode: bubble.dataset.mode || 'ai'
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Save failed');
+      }
+
+      button.textContent = result.saved ? 'Saved' : 'Already saved';
+      button.classList.remove('text-sky-300');
+      button.classList.add('text-emerald-300', 'border-emerald-500/30');
+      updateSavedCounters(result.chatCount, result.chartCount);
+    } catch (error) {
+      button.disabled = false;
+      button.textContent = oldLabel;
+      appendMessage('ai', `Chat save nahi ho paayi.\n\n> Error: ${error.message || 'Unknown error'}`, 'error');
+    }
+  }
+
+  function updateSavedCounters(chatCount, chartCount) {
+    const chatEl = document.getElementById('savedChatCount');
+    const chartEl = document.getElementById('savedChartCount');
+    if (chatEl && chatCount != null) chatEl.textContent = chatCount;
+    if (chartEl && chartCount != null) chartEl.textContent = chartCount;
+  }
+
+  function buildSavedChartsReportKey() {
+    const signature = `${FILE_NAME || 'session'}::${ALL_HEADERS.join('|')}`;
+    return `insightanalytics:saved-charts:${encodeURIComponent(signature).slice(0, 180)}`;
+  }
+
+  function getLocalSavedChartsForReport() {
+    try {
+      const raw = localStorage.getItem(buildSavedChartsReportKey());
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.error('Saved charts read failed', error);
+      return [];
+    }
+  }
+
+  async function syncLocalSavedChartsForReport() {
+    const charts = getLocalSavedChartsForReport();
+    let latest = null;
+    for (const chart of charts) {
+      try {
+        const response = await fetch('/charts/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(chart)
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+          latest = result;
+        }
+      } catch (error) {
+        console.error('Saved chart report sync failed', error);
+      }
+    }
+    if (latest) {
+      updateSavedCounters(latest.chatCount, latest.chartCount);
+    }
+  }
+
+  async function generateReport() {
+    const overlay = document.getElementById('reportOverlay');
+    overlay.classList.remove('hidden');
+    overlay.classList.add('flex');
+
+    await syncLocalSavedChartsForReport();
+
+    setTimeout(() => {
+      overlay.classList.add('hidden');
+      overlay.classList.remove('flex');
+      window.open('/report', '_blank');
+      appendMessage('ai', '**Full report dashboard ready.** Saved chats, saved charts, aur advanced metrics ek report page me open ho gaye.');
+    }, 600);
+    return;
+
+    // Generate report content
+    const numCol = findBestNumericCol();
+    const vals   = numCol ? numCol.nums : [];
+
+    const reportHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Data Analysis Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 40px; color: #1e293b; }
+    h1   { color: #0ea5e9; border-bottom: 2px solid #0ea5e9; pb: 10px; }
+    h2   { color: #334155; margin-top: 30px; }
+    table{ border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th   { background: #0ea5e9; color: white; padding: 8px 12px; text-align: left; }
+    td   { padding: 7px 12px; border-bottom: 1px solid #e2e8f0; }
+    tr:nth-child(even) td { background: #f8fafc; }
+    .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 20px 0; }
+    .stat-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+    .stat-card .val { font-size: 24px; font-weight: bold; color: #0ea5e9; }
+    .stat-card .lbl { font-size: 12px; color: #64748b; }
+    .footer { margin-top: 40px; font-size: 12px; color: #94a3b8; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>📊 Data Analysis Report</h1>
+  <p><strong>File:</strong> ${FILE_NAME || 'uploaded_file'}</p>
+  <p><strong>Generated:</strong> ${new Date().toLocaleString('en-IN')}</p>
+  <p><strong>Powered by:</strong> InsightAnalytics AI</p>
+
+  <h2>Summary</h2>
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="val">${parsedData.length}</div>
+      <div class="lbl">Total Rows</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">${ALL_HEADERS.length}</div>
+      <div class="lbl">Columns</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">${ISSUE_COUNT}</div>
+      <div class="lbl">Issues Found</div>
+    </div>
+    ${numCol && vals.length ? `
+    <div class="stat-card">
+      <div class="val">₹${formatNum(vals.reduce((a,b)=>a+b,0))}</div>
+      <div class="lbl">Total ${numCol.col}</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">₹${formatNum(vals.reduce((a,b)=>a+b,0)/vals.length)}</div>
+      <div class="lbl">Average ${numCol.col}</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">₹${formatNum(Math.max(...vals))}</div>
+      <div class="lbl">Max ${numCol.col}</div>
+    </div>` : ''}
+  </div>
+
+  <h2>Columns</h2>
+  <p>${ALL_HEADERS.join(', ')}</p>
+
+  <h2>Data Preview (First 20 Rows)</h2>
+  <table>
+    <thead>
+      <tr>${ALL_HEADERS.map(h=>`<th>${h}</th>`).join('')}</tr>
+    </thead>
+    <tbody>
+      ${parsedData.slice(0,20).map(row =>
+        `<tr>${ALL_HEADERS.map(h=>`<td>${row[h]??'—'}</td>`).join('')}</tr>`
+      ).join('')}
+    </tbody>
+  </table>
+
+  <div class="footer">
+    Generated by InsightAnalytics AI · ${new Date().toLocaleDateString('en-IN')}
+  </div>
+</body>
+</html>`;
+
+    setTimeout(() => {
+      overlay.classList.add('hidden');
+      overlay.classList.remove('flex');
+
+      // Open print dialog
+      const win = window.open('', '_blank');
+      win.document.write(reportHtml);
+      win.document.close();
+      win.focus();
+      setTimeout(() => win.print(), 500);
+
+      appendMessage('ai', '📄 **Report ready!** Nayi window mein open hua hai — wahan se PDF download karo (Ctrl+P → Save as PDF).');
+    }, 2000);
+  }
+
+  // ── Escape HTML ──────────────────────────────────────────
+  function escapeHtml(text) {
+    return text
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;');
+  }
+</script>
+
+<script>
+  window.sendMessage = async function () {
+    if (isLoading) return;
+
+    const input = document.getElementById('chatInput');
+    const question = input.value.trim();
+    if (!question) return;
+
+    input.value = '';
+    input.style.height = 'auto';
+    appendMessage('user', question);
+
+    const typingId = showTyping();
+    isLoading = true;
+    document.getElementById('sendBtn').disabled = true;
+
+    try {
+      const response = await fetch('/ai-analysis/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question })
+      });
+
+      const result = await response.json();
+      removeTyping(typingId);
+
+      if (result && result.success && result.answer) {
+        appendMessage('ai', result.answer, result.mode || null, { question });
+      } else {
+        const baseMessage = result && result.answer
+          ? result.answer
+          : 'AI reply nahi aa paayi.';
+        const message = result && result.error
+          ? `${baseMessage}\n\n> Error: ${result.error}`
+          : baseMessage;
+        appendMessage('ai', message, result && result.mode ? result.mode : 'error');
+      }
+    } catch (err) {
+      removeTyping(typingId);
+      appendMessage('ai', `AI reply nahi aa paayi.\n\n> Error: ${err.message || 'Unknown error'}`, 'error');
+    } finally {
+      isLoading = false;
+      document.getElementById('sendBtn').disabled = false;
+    }
+  };
+</script>
+
+</body>
+</html>

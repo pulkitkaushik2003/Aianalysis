@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <title>Image to Excel | InsightAnalytics</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <style>
+    .nav-active { color: #38bdf8; font-weight: 600; }
+    .drag-active {
+      border-color: #38bdf8 !important;
+      background: rgba(56, 189, 248, 0.08) !important;
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25);
+    }
+    .upload-ready {
+      border-color: rgba(56, 189, 248, 0.4) !important;
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(12, 18, 30, 0.98));
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.45; transform: scale(0.96); }
+      50% { opacity: 1; transform: scale(1.04); }
+    }
+    @keyframes floatIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .spinner {
+      animation: spin 0.9s linear infinite;
+    }
+    .pulse-glow {
+      animation: pulseGlow 1.8s ease-in-out infinite;
+    }
+    .fade-in {
+      animation: floatIn 0.32s ease forwards;
+    }
+    .grid-bg {
+      background-image:
+        linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+      background-size: 22px 22px;
+    }
+    .table-wrap::-webkit-scrollbar {
+      height: 10px;
+      width: 10px;
+    }
+    .table-wrap::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 999px;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-white">
+
+<div class="min-h-screen bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.12),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(56,189,248,0.08),transparent_32%)]">
+  <div class="flex min-h-screen">
+
+    <aside class="hidden md:flex fixed h-full w-64 flex-col border-r border-slate-800 bg-slate-900/95 p-6 backdrop-blur">
+      <h1 class="mb-10 flex items-center gap-2 text-2xl font-bold text-sky-400">
+        <i data-lucide="bar-chart-3" class="h-6 w-6"></i>
+        <span>InsightAnalytics</span>
+      </h1>
+
+      <ul class="flex-1 space-y-2 text-gray-300">
+        <li>
+          <a th:href="@{/}" href="/"
+             class="flex items-center gap-3 rounded-lg px-3 py-2 transition hover:bg-slate-800 hover:text-sky-400">
+            <i data-lucide="home" class="h-4 w-4"></i>
+            <span>Home</span>
+          </a>
+        </li>
+        <li>
+          <a th:href="@{/dashboard}" href="/dashboard"
+             class="flex items-center gap-3 rounded-lg px-3 py-2 transition hover:bg-slate-800 hover:text-sky-400">
+            <i data-lucide="layout-dashboard" class="h-4 w-4"></i>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        <li>
+          <a th:href="@{/upload}" href="/upload"
+             class="flex items-center gap-3 rounded-lg px-3 py-2 transition hover:bg-slate-800 hover:text-sky-400">
+            <i data-lucide="upload" class="h-4 w-4"></i>
+            <span>Upload Data</span>
+          </a>
+        </li>
+        <li>
+          <a th:href="@{/charts}" href="/charts"
+             class="flex items-center gap-3 rounded-lg px-3 py-2 transition hover:bg-slate-800 hover:text-sky-400">
+            <i data-lucide="bar-chart-2" class="h-4 w-4"></i>
+            <span>Charts</span>
+          </a>
+        </li>
+        <li>
+          <a th:href="@{/ai-analysis}" href="/ai-analysis"
+             class="flex items-center gap-3 rounded-lg px-3 py-2 transition hover:bg-slate-800 hover:text-sky-400">
+            <i data-lucide="bot" class="h-4 w-4"></i>
+            <span>AI Analysis</span>
+          </a>
+        </li>
+        <li>
+          <a th:href="@{/image-to-excel}" href="/image-to-excel"
+             class="nav-active flex items-center gap-3 rounded-lg bg-slate-800 px-3 py-2">
+            <i data-lucide="sheet" class="h-4 w-4"></i>
+            <span>Image to Excel</span>
+          </a>
+        </li>
+        <li>
+          <a th:href="@{/contact}" href="/contact"
+             class="flex items-center gap-3 rounded-lg px-3 py-2 transition hover:bg-slate-800 hover:text-sky-400">
+            <i data-lucide="mail" class="h-4 w-4"></i>
+            <span>Contact</span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="mt-auto border-t border-slate-800 pt-4 text-xs text-slate-500">
+        <p class="uppercase tracking-[0.24em] text-slate-600">Gemini Vision</p>
+        <p class="mt-2 text-slate-400">Gemini reads tables from images and prepares an Excel export preview.</p>
+      </div>
+    </aside>
+
+    <div class="fixed left-0 right-0 top-0 z-30 flex items-center gap-3 border-b border-slate-800 bg-slate-900/95 px-4 py-3 backdrop-blur md:hidden">
+      <i data-lucide="sheet" class="h-5 w-5 text-sky-400"></i>
+      <span class="font-semibold text-sky-400">Image to Excel</span>
+    </div>
+
+    <main class="flex-1 px-4 pb-10 pt-20 md:ml-64 md:px-10 md:pt-10">
+
+      <section class="mb-8 fade-in">
+        <div class="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-[0_22px_80px_rgba(2,6,23,0.35)]">
+          <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div class="max-w-3xl">
+              <p class="mb-3 inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-sky-300">
+                <i data-lucide="scan-search" class="h-3.5 w-3.5"></i>
+                AI-powered extraction
+              </p>
+              <h2 class="text-3xl font-bold tracking-tight text-white md:text-4xl">Image to Excel Converter</h2>
+              <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-300 md:text-base">
+                Upload a photo, screenshot, scanned report, or handwritten table. InsightAnalytics will detect rows and columns,
+                show you a preview, and turn the extracted data into a downloadable `.xlsx` file.
+              </p>
+            </div>
+
+            <div class="grid w-full max-w-xl grid-cols-2 gap-3 sm:grid-cols-4">
+              <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+                <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Formats</p>
+                <p class="mt-2 text-sm font-semibold text-sky-400">JPG PNG WEBP</p>
+              </div>
+              <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+                <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Max Size</p>
+                <p class="mt-2 text-sm font-semibold text-sky-400">10MB</p>
+              </div>
+              <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+                <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Output</p>
+                <p class="mt-2 text-sm font-semibold text-sky-400">Excel .xlsx</p>
+              </div>
+              <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+                <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Session</p>
+                <p class="mt-2 text-sm font-semibold text-sky-400">Preview + Download</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+
+        <section class="fade-in rounded-3xl border border-slate-800 bg-slate-900/85 p-6 shadow-[0_18px_70px_rgba(2,6,23,0.3)]">
+          <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h3 class="text-xl font-semibold text-white">Upload Image</h3>
+              <p class="mt-1 text-sm text-slate-400">
+                Drag and drop a table image, spreadsheet screenshot, scan, or grid capture.
+              </p>
+            </div>
+            <div class="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3 text-xs text-slate-400">
+              Gemini extracts rows and columns before we build the Excel file.
+            </div>
+          </div>
+
+          <div id="alertBox"
+               class="mb-5 hidden rounded-2xl border px-4 py-3 text-sm">
+            <div class="flex items-start gap-3">
+              <i id="alertIcon" data-lucide="alert-circle" class="mt-0.5 h-4 w-4"></i>
+              <p id="alertText">Something went wrong.</p>
+            </div>
+          </div>
+
+          <div id="dropZone"
+               class="grid-bg upload-zone upload-ready cursor-pointer rounded-3xl border-2 border-dashed border-slate-700 bg-slate-950/70 p-6 transition md:p-8"
+               onclick="openFilePicker()"
+               ondragover="handleDragOver(event)"
+               ondragleave="handleDragLeave()"
+               ondrop="handleDrop(event)">
+            <div class="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(260px,0.95fr)]">
+
+              <div class="flex flex-col justify-between">
+                <div>
+                  <div class="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-400/12 text-sky-400">
+                    <i data-lucide="image-up" class="h-6 w-6"></i>
+                  </div>
+                  <h4 class="text-lg font-semibold text-white">Drop image here or click to browse</h4>
+                  <p class="mt-2 max-w-xl text-sm leading-6 text-slate-400">
+                    Supported image types: JPG, JPEG, PNG, WEBP. Best results come from straight, well-lit images where the table grid or columns are visible.
+                  </p>
+                </div>
+
+                <div class="mt-6 flex flex-wrap gap-2 text-xs">
+                  <span class="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-slate-300">Printed reports</span>
+                  <span class="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-slate-300">Spreadsheet screenshots</span>
+                  <span class="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-slate-300">Handwritten tables</span>
+                  <span class="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-slate-300">Scanned docs</span>
+                  <span class="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-slate-300">Database grids</span>
+                </div>
+              </div>
+
+              <div class="rounded-3xl border border-slate-800 bg-slate-900/85 p-4">
+                <div id="imagePreviewState" class="flex min-h-[260px] items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/70">
+                  <div id="emptyPreview" class="px-6 text-center text-slate-500">
+                    <i data-lucide="image" class="mx-auto mb-3 h-10 w-10 text-slate-600"></i>
+                    <p class="text-sm">Selected image preview will appear here.</p>
+                  </div>
+                  <img id="previewImage"
+                       alt="Uploaded preview"
+                       class="hidden max-h-[360px] w-full rounded-2xl object-contain" />
+                </div>
+
+                <div class="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-950/80 px-4 py-3">
+                  <div class="min-w-0">
+                    <p id="selectedFileName" class="truncate text-sm font-medium text-slate-200">No image selected</p>
+                    <p id="selectedFileMeta" class="mt-1 text-xs text-slate-500">Upload up to 10MB</p>
+                  </div>
+                  <button type="button"
+                          id="removeFileBtn"
+                          onclick="clearSelectedFile(event)"
+                          class="hidden rounded-xl border border-slate-700 px-3 py-2 text-xs font-medium text-slate-300 transition hover:border-red-400 hover:text-red-300">
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <input type="file"
+                 id="imageInput"
+                 name="image"
+                 accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                 class="hidden"
+                 onchange="handleInputChange(event)">
+
+          <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex flex-wrap gap-2 text-xs text-slate-400">
+              <span class="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-emerald-300">Table photos</span>
+              <span class="rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1 text-sky-300">Sheet screenshots</span>
+              <span class="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-amber-300">Handwritten grids</span>
+            </div>
+
+            <button type="button"
+                    id="extractBtn"
+                    onclick="extractData()"
+                    disabled
+                    class="inline-flex items-center justify-center gap-2 rounded-2xl bg-sky-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">
+              <i data-lucide="sparkles" class="h-4 w-4"></i>
+              <span>Extract Data</span>
+            </button>
+          </div>
+
+          <div id="loadingState"
+               class="mt-6 hidden rounded-3xl border border-sky-500/20 bg-sky-500/10 p-5 text-slate-200">
+            <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div class="flex items-center gap-4">
+                <div class="pulse-glow flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-400/12">
+                  <div class="spinner h-6 w-6 rounded-full border-2 border-sky-400 border-t-transparent"></div>
+                </div>
+                <div>
+                  <p class="text-sm font-semibold text-sky-300">Reading image and extracting rows...</p>
+                  <p class="mt-1 text-xs text-slate-300">
+                    Gemini is scanning headers, cells, and structure. Dense tables can take a few seconds.
+                  </p>
+                </div>
+              </div>
+              <div class="rounded-2xl border border-slate-800 bg-slate-950/50 px-4 py-3 text-xs text-slate-400">
+                Preview will appear before download.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="fade-in space-y-6">
+          <section class="rounded-3xl border border-slate-800 bg-slate-900/85 p-6">
+            <h3 class="text-lg font-semibold text-white">How it works</h3>
+            <div class="mt-5 space-y-4">
+              <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+                <p class="text-xs uppercase tracking-[0.22em] text-slate-500">Step 1</p>
+                <p class="mt-2 text-sm text-slate-200">Upload a report photo, sheet screenshot, or scanned table image.</p>
+              </div>
+              <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+                <p class="text-xs uppercase tracking-[0.22em] text-slate-500">Step 2</p>
+                <p class="mt-2 text-sm text-slate-200">Gemini Vision extracts rows and columns into structured JSON.</p>
+              </div>
+              <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+                <p class="text-xs uppercase tracking-[0.22em] text-slate-500">Step 3</p>
+                <p class="mt-2 text-sm text-slate-200">Review the preview table, then download the generated Excel file.</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="rounded-3xl border border-slate-800 bg-slate-900/85 p-6">
+            <h3 class="text-lg font-semibold text-white">Extraction tips</h3>
+            <ul class="mt-4 space-y-3 text-sm text-slate-300">
+              <li class="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3">Keep the table straight and avoid extreme tilt.</li>
+              <li class="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3">Use a sharper image if the text looks blurry or low-contrast.</li>
+              <li class="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3">Make sure grid lines or column spacing are visible for best results.</li>
+              <li class="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3">For handwritten tables, clear lighting and dark ink help a lot.</li>
+            </ul>
+          </section>
+        </aside>
+      </div>
+
+      <section id="previewSection"
+               class="mt-6 rounded-3xl border border-slate-800 bg-slate-900/85 p-6 shadow-[0_18px_70px_rgba(2,6,23,0.3)] fade-in"
+               th:classappend="${hasPreview} ? '' : ' hidden'">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div class="flex flex-wrap items-center gap-3">
+              <h3 class="text-xl font-semibold text-white">Extracted Preview</h3>
+              <span id="rowCountBadge"
+                    class="rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-300"
+                    th:text="${previewRowCount ?: 0} + ' rows'">0 rows</span>
+            </div>
+            <p id="previewMetaText" class="mt-2 text-sm text-slate-400">
+              Review the extracted table before downloading the Excel file.
+            </p>
+          </div>
+
+          <div class="flex flex-col gap-3 sm:flex-row">
+            <button type="button"
+                    id="downloadBtn"
+                    onclick="downloadExcel()"
+                    class="inline-flex items-center justify-center gap-2 rounded-2xl bg-sky-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-300">
+              <i data-lucide="download" class="h-4 w-4"></i>
+              <span>Download Excel</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-5 grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+          <div class="rounded-3xl border border-slate-800 bg-slate-950/75 p-5">
+            <p class="text-xs uppercase tracking-[0.22em] text-slate-500">Current extraction</p>
+            <p id="previewFileNameText"
+               class="mt-3 break-words text-sm font-medium text-slate-200"
+               th:text="${previewFileName ?: 'Session preview ready'}">Session preview ready</p>
+            <div class="mt-4 space-y-3 text-sm text-slate-400">
+              <div class="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3">
+                <span class="block text-xs uppercase tracking-[0.18em] text-slate-500">Headers</span>
+                <span id="headerCountText" class="mt-1 block text-slate-200">0 columns</span>
+              </div>
+              <div class="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3">
+                <span class="block text-xs uppercase tracking-[0.18em] text-slate-500">Download</span>
+                <span class="mt-1 block text-slate-200">extracted_data.xlsx</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-3xl border border-slate-800 bg-slate-950/75 p-4">
+            <div id="emptyTableState"
+                 class="flex min-h-[220px] items-center justify-center text-center text-sm text-slate-500">
+              Preview table will appear here after extraction.
+            </div>
+
+            <div id="tableContainer" class="hidden">
+              <div class="table-wrap overflow-x-auto rounded-2xl border border-slate-800">
+                <table class="min-w-full text-left text-sm">
+                  <thead id="tableHead" class="bg-slate-900 text-xs uppercase tracking-[0.16em] text-slate-400"></thead>
+                  <tbody id="tableBody" class="divide-y divide-slate-800 text-slate-200"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script th:inline="javascript">
+  /*<![CDATA[*/
+  const INITIAL_HEADERS = /*[[${previewHeaders}]]*/ [];
+  const INITIAL_ROWS = /*[[${previewRows}]]*/ [];
+  const INITIAL_FILE_NAME = /*[[${previewFileName}]]*/ '';
+  /*]]>*/
+</script>
+
+<script>
+  lucide.createIcons();
+
+  const MAX_SIZE_BYTES = 10 * 1024 * 1024;
+  const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
+
+  let selectedFile = null;
+  let previewHeaders = Array.isArray(INITIAL_HEADERS) ? INITIAL_HEADERS : [];
+  let previewRows = Array.isArray(INITIAL_ROWS) ? INITIAL_ROWS : [];
+  let previewFileName = INITIAL_FILE_NAME || '';
+  let isProcessing = false;
+
+  window.addEventListener('load', () => {
+    if (previewRows.length && previewHeaders.length) {
+      renderPreviewTable(previewHeaders, previewRows, previewFileName);
+    } else {
+      togglePreviewSection(false);
+    }
+  });
+
+  function openFilePicker() {
+    if (isProcessing) return;
+    document.getElementById('imageInput').click();
+  }
+
+  function handleDragOver(event) {
+    event.preventDefault();
+    if (isProcessing) return;
+    document.getElementById('dropZone').classList.add('drag-active');
+  }
+
+  function handleDragLeave() {
+    document.getElementById('dropZone').classList.remove('drag-active');
+  }
+
+  function handleDrop(event) {
+    event.preventDefault();
+    handleDragLeave();
+    if (isProcessing) return;
+
+    const file = event.dataTransfer.files && event.dataTransfer.files[0];
+    if (file) {
+      processSelectedFile(file);
+    }
+  }
+
+  function handleInputChange(event) {
+    const file = event.target.files && event.target.files[0];
+    if (file) {
+      processSelectedFile(file);
+    }
+  }
+
+  function processSelectedFile(file) {
+    hideAlert();
+
+    const extension = getExtension(file.name);
+    if (!ALLOWED_EXTENSIONS.includes(extension)) {
+      clearSelectedFile();
+      showAlert('error', 'Invalid file type. Please upload JPG, JPEG, PNG, or WEBP image.');
+      return;
+    }
+
+    if (file.size > MAX_SIZE_BYTES) {
+      clearSelectedFile();
+      showAlert('error', 'File is too large. Please upload an image under 10MB.');
+      return;
+    }
+
+    selectedFile = file;
+    document.getElementById('extractBtn').disabled = false;
+    document.getElementById('removeFileBtn').classList.remove('hidden');
+    document.getElementById('selectedFileName').textContent = file.name;
+    document.getElementById('selectedFileMeta').textContent =
+      `${formatFileSize(file.size)}  |  ${extension.toUpperCase()}`;
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('emptyPreview').classList.add('hidden');
+      const image = document.getElementById('previewImage');
+      image.src = e.target.result;
+      image.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function clearSelectedFile(event) {
+    if (event) {
+      event.stopPropagation();
+    }
+
+    selectedFile = null;
+    document.getElementById('imageInput').value = '';
+    document.getElementById('extractBtn').disabled = true;
+    document.getElementById('removeFileBtn').classList.add('hidden');
+    document.getElementById('selectedFileName').textContent = 'No image selected';
+    document.getElementById('selectedFileMeta').textContent = 'Upload up to 10MB';
+    document.getElementById('emptyPreview').classList.remove('hidden');
+
+    const image = document.getElementById('previewImage');
+    image.src = '';
+    image.classList.add('hidden');
+  }
+
+  async function extractData() {
+    if (!selectedFile || isProcessing) {
+      return;
+    }
+
+    hideAlert();
+    setProcessing(true);
+
+    const formData = new FormData();
+    formData.append('image', selectedFile);
+
+    try {
+      const response = await fetch('/image-to-excel/preview', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Unable to extract table data from this image.');
+      }
+
+      previewHeaders = Array.isArray(result.headers) ? result.headers : [];
+      previewRows = Array.isArray(result.data) ? result.data : [];
+      previewFileName = result.fileName || selectedFile.name;
+
+      if (!previewHeaders.length || !previewRows.length) {
+        throw new Error('No table data found in the image. Please try a clearer image.');
+      }
+
+      renderPreviewTable(previewHeaders, previewRows, previewFileName);
+      showAlert('success', 'Data extracted successfully. Review the preview and download the Excel file.');
+    } catch (error) {
+      togglePreviewSection(false);
+      showAlert('error', error.message || 'Something went wrong while processing the image.');
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  function renderPreviewTable(headers, rows, fileName) {
+    togglePreviewSection(true);
+
+    document.getElementById('previewFileNameText').textContent = fileName || 'Extracted image';
+    document.getElementById('rowCountBadge').textContent = `${rows.length} rows`;
+    document.getElementById('headerCountText').textContent = `${headers.length} columns`;
+    document.getElementById('previewMetaText').textContent =
+      `Showing ${rows.length} extracted row${rows.length === 1 ? '' : 's'} from the uploaded image.`;
+
+    const head = document.getElementById('tableHead');
+    const body = document.getElementById('tableBody');
+    const tableContainer = document.getElementById('tableContainer');
+    const emptyTableState = document.getElementById('emptyTableState');
+
+    head.innerHTML = `
+      <tr>
+        <th class="px-4 py-3 text-slate-500">#</th>
+        ${headers.map(header => `<th class="px-4 py-3">${escapeHtml(header)}</th>`).join('')}
+      </tr>
+    `;
+
+    body.innerHTML = rows.map((row, index) => `
+      <tr class="bg-slate-950/20 transition hover:bg-slate-900/70">
+        <td class="px-4 py-3 text-xs text-slate-500">${index + 1}</td>
+        ${headers.map(header => `
+          <td class="px-4 py-3 align-top text-sm text-slate-200">
+            ${escapeHtml(stringValue(row[header])) || '<span class="text-slate-500">-</span>'}
+          </td>
+        `).join('')}
+      </tr>
+    `).join('');
+
+    emptyTableState.classList.add('hidden');
+    tableContainer.classList.remove('hidden');
+    lucide.createIcons();
+  }
+
+  function togglePreviewSection(show) {
+    const section = document.getElementById('previewSection');
+    if (show) {
+      section.classList.remove('hidden');
+    } else {
+      section.classList.add('hidden');
+      document.getElementById('tableContainer').classList.add('hidden');
+      document.getElementById('emptyTableState').classList.remove('hidden');
+    }
+  }
+
+  function setProcessing(state) {
+    isProcessing = state;
+    document.getElementById('extractBtn').disabled = state || !selectedFile;
+    document.getElementById('loadingState').classList.toggle('hidden', !state);
+    document.getElementById('dropZone').classList.toggle('pointer-events-none', state);
+  }
+
+  function downloadExcel() {
+    window.location.href = '/image-to-excel/download';
+  }
+
+  function showAlert(type, message) {
+    const alertBox = document.getElementById('alertBox');
+    const alertText = document.getElementById('alertText');
+
+    alertBox.classList.remove('hidden', 'border-red-500/40', 'bg-red-500/10', 'text-red-200',
+      'border-emerald-500/40', 'bg-emerald-500/10', 'text-emerald-100');
+
+    if (type === 'success') {
+      alertBox.classList.add('border-emerald-500/40', 'bg-emerald-500/10', 'text-emerald-100');
+    } else {
+      alertBox.classList.add('border-red-500/40', 'bg-red-500/10', 'text-red-200');
+    }
+
+    alertText.textContent = message;
+    alertBox.classList.remove('hidden');
+  }
+
+  function hideAlert() {
+    document.getElementById('alertBox').classList.add('hidden');
+  }
+
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function getExtension(fileName) {
+    const dotIndex = fileName.lastIndexOf('.');
+    return dotIndex >= 0 ? fileName.substring(dotIndex + 1).toLowerCase() : '';
+  }
+
+  function stringValue(value) {
+    if (value === null || value === undefined) return '';
+    return String(value);
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+</script>
+
+</body>
+</html>

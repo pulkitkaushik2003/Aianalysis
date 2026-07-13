@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Data Cleaning | InsightAnalytics</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <style>
+    .nav-active { color: #38bdf8; font-weight: 600; }
+
+    .cell-missing   { background: rgba(239,68,68,0.15);  color: #fca5a5; font-style: italic; }
+    .cell-duplicate { background: rgba(249,115,22,0.15); color: #fdba74; }
+    .cell-outlier   { background: rgba(168,85,247,0.15); color: #d8b4fe; font-weight: 600; }
+    .cell-fixed     { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+
+    .row-missing   { border-left: 3px solid #ef4444; }
+    .row-duplicate { border-left: 3px solid #f97316; }
+    .row-outlier   { border-left: 3px solid #a855f7; }
+    .row-clean     { border-left: 3px solid transparent; }
+
+    /* Fix option card */
+    .fix-card { transition: all 0.2s; }
+    .fix-card:hover { border-color: #38bdf8 !important; }
+
+    /* Toggle checkbox */
+    .fix-toggle:checked + .fix-toggle-label {
+      background: #38bdf8;
+      color: black;
+    }
+
+    /* Option button active */
+    .opt-btn.selected {
+      background: #0ea5e9;
+      color: black;
+      border-color: #0ea5e9;
+    }
+
+    /* Preview tabs */
+    .tab-btn.active {
+      background: #38bdf8;
+      color: black;
+      font-weight: 600;
+    }
+
+    /* Toast */
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+    .toast-show { animation: slideUp 0.3s ease forwards; }
+
+    @keyframes fadeIn {
+      from { opacity:0; transform:translateY(6px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .fade-in { animation: fadeIn 0.3s ease forwards; }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-white">
+
+<!-- Toast -->
+<div id="toast"
+     class="fixed bottom-8 right-8 z-50 hidden px-5 py-3 rounded-xl
+            font-medium text-sm shadow-lg toast-show">
+</div>
+
+<div class="flex min-h-screen">
+
+  <!-- ── SIDEBAR ──────────────────────────────────────────── -->
+  <aside class="w-64 bg-slate-900 p-6 hidden md:flex flex-col fixed h-full">
+    <h1 class="text-2xl font-bold text-sky-400 mb-10">InsightAnalytics</h1>
+
+    <ul class="space-y-2 text-gray-300 flex-1">
+      <li>
+        <a th:href="@{/}" href="/"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          🏠 Home
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/dashboard}" href="/dashboard"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          📊 Dashboard
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/upload}" href="/upload"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          📤 Upload Data
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/charts}" href="/charts"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          📈 Charts
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/ai-analysis}" href="/ai-analysis"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          🤖 AI Analysis
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/image-to-excel}" href="/image-to-excel"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          Image to Excel
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/fix}" href="/fix"
+           class="nav-active flex gap-3 items-center px-3 py-2 rounded-lg bg-slate-800">
+          🔧 Data Cleaning
+        </a>
+      </li>
+    </ul>
+
+    <div class="text-xs text-slate-500 mt-auto pt-4 border-t border-slate-800">
+      <!-- Claude branding removed -->
+    </div>
+  </aside>
+
+  <!-- ── MAIN ─────────────────────────────────────────────── -->
+  <main class="flex-1 md:ml-64 p-6 md:p-10">
+
+    <!-- HEADER -->
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h2 class="text-2xl font-bold mb-1">Data Cleaning</h2>
+        <p class="text-gray-400 text-sm">Issues detect karo, fix choose karo, apply karo</p>
+      </div>
+      <a th:href="@{/dashboard}" href="/dashboard"
+         class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg text-sm transition">
+        ← Dashboard
+      </a>
+    </div>
+
+    <!-- ── SECTION 1: DETECTED ISSUES + FIX OPTIONS ─────── -->
+    <div class="space-y-4 mb-10 fade-in">
+
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="text-lg font-semibold">Detected Issues</h3>
+        <div class="flex gap-3">
+          <button onclick="applySelected()"
+                  class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700
+                         border border-slate-600 px-4 py-2 rounded-xl text-sm transition">
+            ✅ Apply Selected
+          </button>
+          <button onclick="applyAll()"
+                  class="flex items-center gap-2 bg-sky-500 hover:bg-sky-400
+                         text-black font-semibold px-5 py-2 rounded-xl text-sm transition">
+            ⚡ Apply All Fixes
+          </button>
+        </div>
+      </div>
+
+      <!-- 1. Missing Values -->
+      <div class="fix-card bg-slate-900 border border-slate-700 rounded-2xl p-5"
+           id="card-missing">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+
+          <div class="flex items-center gap-4">
+            <!-- Toggle checkbox -->
+            <input type="checkbox" id="toggle-missing" class="w-4 h-4 accent-sky-400"
+                   checked onchange="toggleCard('missing', this.checked)">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-lg">⚠️</span>
+                <p class="font-semibold">Missing Values</p>
+                <span class="bg-red-900/40 text-red-400 text-xs px-2 py-0.5 rounded-full"
+                      th:text="${missingCount ?: 0} + ' rows'">0 rows</span>
+              </div>
+              <p class="text-xs text-gray-400">Empty ya null cells detected</p>
+            </div>
+          </div>
+
+          <!-- Fix options -->
+          <div class="flex gap-2 flex-wrap" id="opts-missing">
+            <button onclick="selectOpt('missing', 'avg')"
+                    id="missing-avg"
+                    class="opt-btn selected text-xs px-3 py-1.5 rounded-lg border
+                           border-slate-600 bg-slate-800 hover:border-sky-400 transition">
+              Fill with Average
+            </button>
+            <button onclick="selectOpt('missing', 'zero')"
+                    id="missing-zero"
+                    class="opt-btn text-xs px-3 py-1.5 rounded-lg border
+                           border-slate-600 bg-slate-800 hover:border-sky-400 transition">
+              Fill with 0
+            </button>
+            <button onclick="selectOpt('missing', 'delete')"
+                    id="missing-delete"
+                    class="opt-btn text-xs px-3 py-1.5 rounded-lg border
+                           border-red-600/50 bg-slate-800 hover:border-red-400 transition text-red-400">
+              Delete Rows
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-4 border-t border-slate-800">
+          <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              Column-wise Missing Value Rules
+            </p>
+            <p class="text-xs text-gray-500">
+              Har column ke liye `Average`, `0`, ya `Unknown` choose kar sakte ho
+            </p>
+          </div>
+          <div id="missingColumnRules" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3"></div>
+        </div>
+      </div>
+
+      <!-- 2. Duplicate Rows -->
+      <div class="fix-card bg-slate-900 border border-slate-700 rounded-2xl p-5"
+           id="card-duplicate">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+
+          <div class="flex items-center gap-4">
+            <input type="checkbox" id="toggle-duplicate" class="w-4 h-4 accent-sky-400"
+                   checked onchange="toggleCard('duplicate', this.checked)">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-lg">🔁</span>
+                <p class="font-semibold">Duplicate Rows</p>
+                <span class="bg-orange-900/40 text-orange-400 text-xs px-2 py-0.5 rounded-full"
+                      th:text="${duplicateCount ?: 0} + ' rows'">0 rows</span>
+              </div>
+              <p class="text-xs text-gray-400">Exactly same rows detect hue</p>
+            </div>
+          </div>
+
+          <div class="flex gap-2 flex-wrap" id="opts-duplicate">
+            <button onclick="selectOpt('duplicate', 'remove')"
+                    id="duplicate-remove"
+                    class="opt-btn selected text-xs px-3 py-1.5 rounded-lg border
+                           border-slate-600 bg-slate-800 hover:border-sky-400 transition">
+              Remove Duplicates
+            </button>
+            <button onclick="selectOpt('duplicate', 'keep')"
+                    id="duplicate-keep"
+                    class="opt-btn text-xs px-3 py-1.5 rounded-lg border
+                           border-slate-600 bg-slate-800 hover:border-sky-400 transition">
+              Keep All
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Outliers -->
+      <div class="fix-card bg-slate-900 border border-slate-700 rounded-2xl p-5"
+           id="card-outlier">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+
+          <div class="flex items-center gap-4">
+            <input type="checkbox" id="toggle-outlier" class="w-4 h-4 accent-sky-400"
+                   checked onchange="toggleCard('outlier', this.checked)">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-lg">🔴</span>
+                <p class="font-semibold">Outliers</p>
+                <span class="bg-purple-900/40 text-purple-400 text-xs px-2 py-0.5 rounded-full"
+                      th:text="${outlierCount ?: 0} + ' rows'">0 rows</span>
+              </div>
+              <p class="text-xs text-gray-400">IQR method se detect hue extreme values</p>
+            </div>
+          </div>
+
+          <div class="flex gap-2 flex-wrap" id="opts-outlier">
+            <button onclick="selectOpt('outlier', 'highlight')"
+                    id="outlier-highlight"
+                    class="opt-btn selected text-xs px-3 py-1.5 rounded-lg border
+                           border-slate-600 bg-slate-800 hover:border-sky-400 transition">
+              Highlight Only
+            </button>
+            <button onclick="selectOpt('outlier', 'remove')"
+                    id="outlier-remove"
+                    class="opt-btn text-xs px-3 py-1.5 rounded-lg border
+                           border-red-600/50 bg-slate-800 hover:border-red-400 transition text-red-400">
+              Remove
+            </button>
+            <button onclick="selectOpt('outlier', 'cap')"
+                    id="outlier-cap"
+                    class="opt-btn text-xs px-3 py-1.5 rounded-lg border
+                           border-slate-600 bg-slate-800 hover:border-sky-400 transition">
+              Cap Value (IQR)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Wrong Data Types -->
+      <div class="fix-card bg-slate-900 border border-slate-700 rounded-2xl p-5"
+           id="card-wrongtype">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+
+          <div class="flex items-center gap-4">
+            <input type="checkbox" id="toggle-wrongtype" class="w-4 h-4 accent-sky-400"
+                   checked onchange="toggleCard('wrongtype', this.checked)">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-lg">🔢</span>
+                <p class="font-semibold">Wrong Data Types</p>
+                <span class="bg-blue-900/40 text-blue-400 text-xs px-2 py-0.5 rounded-full"
+                      id="wrongTypeCount">Scanning...</span>
+              </div>
+              <p class="text-xs text-gray-400">Number column mein text values</p>
+            </div>
+          </div>
+
+          <div class="flex gap-2 flex-wrap" id="opts-wrongtype">
+            <button onclick="selectOpt('wrongtype', 'convert')"
+                    id="wrongtype-convert"
+                    class="opt-btn selected text-xs px-3 py-1.5 rounded-lg border
+                           border-slate-600 bg-slate-800 hover:border-sky-400 transition">
+              Convert to Number
+            </button>
+            <button onclick="selectOpt('wrongtype', 'keep')"
+                    id="wrongtype-keep"
+                    class="opt-btn text-xs px-3 py-1.5 rounded-lg border
+                           border-slate-600 bg-slate-800 hover:border-sky-400 transition">
+              Keep as Text
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Extra Spaces -->
+      <div class="fix-card bg-slate-900 border border-slate-700 rounded-2xl p-5"
+           id="card-spaces">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+
+          <div class="flex items-center gap-4">
+            <input type="checkbox" id="toggle-spaces" class="w-4 h-4 accent-sky-400"
+                   checked onchange="toggleCard('spaces', this.checked)">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-lg">✂️</span>
+                <p class="font-semibold">Extra Spaces</p>
+                <span class="bg-teal-900/40 text-teal-400 text-xs px-2 py-0.5 rounded-full"
+                      id="spacesCount">Scanning...</span>
+              </div>
+              <p class="text-xs text-gray-400">" John " → "John" jaisi values</p>
+            </div>
+          </div>
+
+          <div class="flex gap-2 flex-wrap" id="opts-spaces">
+            <button onclick="selectOpt('spaces', 'trim')"
+                    id="spaces-trim"
+                    class="opt-btn selected text-xs px-3 py-1.5 rounded-lg border
+                           border-slate-600 bg-slate-800 hover:border-sky-400 transition">
+              Auto Trim
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── SECTION 2: BEFORE / AFTER PREVIEW ────────────── -->
+    <div class="bg-slate-900 rounded-2xl border border-slate-800 fade-in">
+
+      <!-- Preview Header -->
+      <div class="p-5 border-b border-slate-800 flex items-center justify-between flex-wrap gap-3">
+        <p class="font-semibold">Preview</p>
+
+        <!-- Tabs -->
+        <div class="flex gap-2">
+          <button onclick="showTab('before')" id="tab-before"
+                  class="tab-btn active text-xs px-4 py-1.5 rounded-lg
+                         bg-slate-800 border border-slate-700 transition">
+            Before
+          </button>
+          <button onclick="showTab('after')" id="tab-after"
+                  class="tab-btn text-xs px-4 py-1.5 rounded-lg
+                         bg-slate-800 border border-slate-700 transition">
+            After (Preview)
+          </button>
+          <button onclick="showTab('side')" id="tab-side"
+                  class="tab-btn text-xs px-4 py-1.5 rounded-lg
+                         bg-slate-800 border border-slate-700 transition">
+            Side by Side
+          </button>
+        </div>
+
+        <!-- Search -->
+        <input type="text"
+               id="searchInput"
+               placeholder="🔍 Search..."
+               oninput="filterRows()"
+               class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-1.5
+                      text-sm text-white w-44 focus:outline-none focus:border-sky-400
+                      placeholder-gray-500">
+
+        <!-- Issue filter -->
+        <select id="issueFilter" onchange="filterRows()"
+                class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5
+                       text-sm text-gray-300 focus:outline-none focus:border-sky-400">
+          <option value="all">All Rows</option>
+          <option value="missing">⚠️ Missing</option>
+          <option value="duplicate">🔁 Duplicate</option>
+          <option value="outlier">🔴 Outlier</option>
+          <option value="clean">✅ Clean</option>
+        </select>
+      </div>
+
+      <!-- BEFORE TABLE -->
+      <div id="view-before" class="overflow-x-auto">
+        <p class="text-xs text-gray-500 px-5 pt-3">Original data — issues highlighted</p>
+        <table class="w-full text-sm mt-2" id="beforeTable">
+          <thead class="bg-slate-800 text-gray-400 text-xs uppercase tracking-wider">
+            <tr>
+              <th class="px-4 py-3 text-left w-10">#</th>
+              <th th:each="h : ${headers}" th:text="${h}"
+                  class="px-4 py-3 text-left whitespace-nowrap"></th>
+              <th class="px-4 py-3 text-left">Status</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr th:each="row, iter : ${data}"
+                th:classappend="${row.get('_issue') == 'missing'}   ? 'row-missing'   :
+                                (${row.get('_issue') == 'duplicate'} ? 'row-duplicate' :
+                                (${row.get('_issue') == 'outlier'}   ? 'row-outlier'   : 'row-clean'))"
+                th:attr="data-issue=${row.get('_issue') ?: 'clean'}"
+                class="border-b border-slate-800/50 hover:bg-slate-800/30 transition">
+
+              <td class="px-4 py-3 text-gray-500 text-xs"
+                  th:text="${iter.index + 1}">1</td>
+
+              <td th:each="h : ${headers}"
+                  th:text="${row.get(h) != null ? row.get(h) : '—'}"
+                  th:classappend="${row.get(h) == null} ? 'cell-missing' :
+                                  (${row.get('_issue') == 'duplicate'} ? 'cell-duplicate' :
+                                  (${row.get('_issue') == 'outlier'}   ? 'cell-outlier'   : 'text-gray-200'))"
+                  class="px-4 py-3"></td>
+
+              <td class="px-4 py-3">
+                <span th:switch="${row.get('_issue')}">
+                  <span th:case="'missing'"
+                        class="bg-red-900/40 text-red-400 text-xs px-2 py-0.5 rounded-full">⚠️ Missing</span>
+                  <span th:case="'duplicate'"
+                        class="bg-orange-900/40 text-orange-400 text-xs px-2 py-0.5 rounded-full">🔁 Duplicate</span>
+                  <span th:case="'outlier'"
+                        class="bg-purple-900/40 text-purple-400 text-xs px-2 py-0.5 rounded-full">🔴 Outlier</span>
+                  <span th:case="*"
+                        class="bg-emerald-900/40 text-emerald-400 text-xs px-2 py-0.5 rounded-full">✅ Clean</span>
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- AFTER TABLE (JS se generate hoga) -->
+      <div id="view-after" class="overflow-x-auto hidden">
+        <p class="text-xs text-gray-500 px-5 pt-3">
+          Preview after fixes — green = fixed cells
+        </p>
+        <div id="afterTableContainer" class="mt-2"></div>
+      </div>
+
+      <!-- SIDE BY SIDE -->
+      <div id="view-side" class="hidden">
+        <div class="grid grid-cols-2 divide-x divide-slate-700">
+          <div class="overflow-x-auto">
+            <p class="text-xs text-red-400 px-4 pt-3 font-semibold">Before</p>
+            <div id="sideBeforeContainer" class="mt-2"></div>
+          </div>
+          <div class="overflow-x-auto">
+            <p class="text-xs text-emerald-400 px-4 pt-3 font-semibold">After</p>
+            <div id="sideAfterContainer" class="mt-2"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-800 p-5">
+        <div class="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <p class="text-sm font-semibold text-white">Clean Data Excel</p>
+            <p id="downloadStatus" class="text-xs text-gray-400 mt-1">
+              Preview ready hai. Apply karke clean data save karo, phir yahin se Excel download kar lo.
+            </p>
+            <p id="cleanedPreviewMeta" class="text-xs text-emerald-400 mt-2 hidden"></p>
+          </div>
+
+          <div class="flex gap-3 flex-wrap">
+            <a id="downloadCleanBtn"
+               href="/fix/download-cleaned"
+               class="hidden bg-emerald-500 hover:bg-emerald-400 text-black font-semibold px-4 py-2 rounded-xl text-sm transition">
+              Download Clean Excel
+            </a>
+            <a id="openDashboardBtn"
+               th:href="@{/dashboard}"
+               href="/dashboard"
+               class="hidden bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-xl text-sm transition">
+              Open Dashboard
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="px-5 py-3 border-t border-slate-800 text-xs text-gray-400
+                  flex items-center justify-between flex-wrap gap-2">
+        <span>
+          Showing <span id="visibleCount" class="text-white font-medium">—</span> rows
+        </span>
+        <div class="flex gap-4">
+          <span class="flex items-center gap-1">
+            <span class="w-2 h-2 rounded-full bg-red-400 inline-block"></span>
+            Missing: <span class="text-white ml-1" th:text="${missingCount ?: 0}">0</span>
+          </span>
+          <span class="flex items-center gap-1">
+            <span class="w-2 h-2 rounded-full bg-orange-400 inline-block"></span>
+            Duplicate: <span class="text-white ml-1" th:text="${duplicateCount ?: 0}">0</span>
+          </span>
+          <span class="flex items-center gap-1">
+            <span class="w-2 h-2 rounded-full bg-purple-400 inline-block"></span>
+            Outlier: <span class="text-white ml-1" th:text="${outlierCount ?: 0}">0</span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script th:inline="javascript">
+  /*<![CDATA[*/
+  const RAW_DATA    = /*[[${data}]]*/ [];
+  const ALL_HEADERS = /*[[${headers}]]*/ [];
+  /*]]>*/
+</script>
+
+<script>
+  lucide.createIcons();
+  let cleanedPreviewRows = [];
+  let lastDownloadUrl = '/fix/download-cleaned';
+  const perColumnMissingOpts = {};
+  let missingColumnMeta = [];
+
+  // ── Selected options state ───────────────────────────────
+  const selectedOpts = {
+    missing:   'avg',
+    duplicate: 'remove',
+    outlier:   'highlight',
+    wrongtype: 'convert',
+    spaces:    'trim',
+  };
+
+  const enabledCards = {
+    missing:   true,
+    duplicate: true,
+    outlier:   true,
+    wrongtype: true,
+    spaces:    true,
+  };
+
+  // ── Init ─────────────────────────────────────────────────
+  window.addEventListener('load', () => {
+    updateCount();
+    scanExtraIssues();
+    renderMissingColumnRules();
+  });
+
+  // Scan wrong types + extra spaces from RAW_DATA
+  function scanExtraIssues() {
+    if (!RAW_DATA || RAW_DATA.length === 0) return;
+
+    let wrongTypeCount = 0;
+    let spacesCount    = 0;
+
+    RAW_DATA.forEach(row => {
+      ALL_HEADERS.forEach(h => {
+        const val = row[h];
+        if (val == null) return;
+        const str = String(val);
+        // Extra spaces check
+        if (str !== str.trim()) spacesCount++;
+        // Wrong type — text in numeric-looking column
+        if (isNaN(Number(str)) && str.trim() !== '' && !isNaN(Number(str.replace(/[₹,]/g,'')))) wrongTypeCount++;
+      });
+    });
+
+    document.getElementById('wrongTypeCount').textContent = wrongTypeCount + ' cells';
+    document.getElementById('spacesCount').textContent    = spacesCount    + ' cells';
+  }
+
+  function renderMissingColumnRules() {
+    const container = document.getElementById('missingColumnRules');
+    if (!container || !ALL_HEADERS.length) return;
+
+    missingColumnMeta = getMissingColumnMeta();
+
+    if (!missingColumnMeta.length) {
+      container.innerHTML = `
+        <div class="md:col-span-2 xl:col-span-3 bg-emerald-950/40 border border-emerald-800 rounded-xl px-4 py-3">
+          <p class="text-sm text-emerald-300 font-medium">Missing values ke liye koi extra setup nahi chahiye.</p>
+          <p class="text-xs text-emerald-400/80 mt-1">Jin columns me data already available hai, unpe koi rule apply nahi hoga.</p>
+        </div>
+      `;
+      return;
+    }
+
+    missingColumnMeta.forEach(meta => {
+      if (!perColumnMissingOpts[meta.header]) {
+        perColumnMissingOpts[meta.header] = meta.defaultRule;
+      }
+    });
+
+    container.innerHTML = missingColumnMeta.map(meta => `
+      <label class="bg-slate-950/70 border border-slate-800 rounded-xl px-3 py-3 flex items-center justify-between gap-3">
+        <span class="min-w-0">
+          <span class="block text-xs text-gray-300 truncate">${meta.header}</span>
+          <span class="block text-[11px] text-gray-500 mt-1">${meta.missingCount} missing cells · default ${meta.defaultLabel}</span>
+        </span>
+        <select onchange="setMissingRule('${escapeJs(meta.header)}', this.value)"
+                class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-sky-400">
+          <option value="">Default</option>
+          <option value="avg" ${perColumnMissingOpts[meta.header] === 'avg' ? 'selected' : ''}>Average</option>
+          <option value="zero" ${perColumnMissingOpts[meta.header] === 'zero' ? 'selected' : ''}>0</option>
+          <option value="unknown" ${perColumnMissingOpts[meta.header] === 'unknown' ? 'selected' : ''}>Unknown</option>
+        </select>
+      </label>
+    `).join('');
+  }
+
+  function getMissingColumnMeta() {
+    return ALL_HEADERS.map(header => {
+      const values = RAW_DATA.map(row => row[header]);
+      const missingCount = values.filter(v => v == null || String(v).trim() === '').length;
+      const numericCount = values
+        .map(v => parseFloat(String(v ?? '').replace(/[₹,]/g, '')))
+        .filter(v => !isNaN(v)).length;
+
+      const isMostlyNumeric = numericCount > 0 && numericCount >= (values.length - missingCount) * 0.5;
+      const defaultRule = isMostlyNumeric ? 'avg' : 'unknown';
+
+      return {
+        header,
+        missingCount,
+        defaultRule,
+        defaultLabel: isMostlyNumeric ? 'Average' : 'Unknown'
+      };
+    }).filter(meta => meta.missingCount > 0);
+  }
+
+  function setMissingRule(header, value) {
+    if (!value) delete perColumnMissingOpts[header];
+    else perColumnMissingOpts[header] = value;
+
+    if (currentTab !== 'before') generateAfterPreview();
+  }
+
+  // ── Option select ────────────────────────────────────────
+  function selectOpt(type, opt) {
+    selectedOpts[type] = opt;
+    // Remove selected from all buttons in this group
+    document.querySelectorAll(`#opts-${type} .opt-btn`)
+            .forEach(b => b.classList.remove('selected'));
+    // Add to clicked
+    document.getElementById(`${type}-${opt}`).classList.add('selected');
+    // Refresh after preview if on after tab
+    if (currentTab !== 'before') generateAfterPreview();
+  }
+
+  // ── Toggle card ──────────────────────────────────────────
+  function toggleCard(type, enabled) {
+    enabledCards[type] = enabled;
+    const opts = document.getElementById(`opts-${type}`);
+    if (opts) opts.style.opacity = enabled ? '1' : '0.4';
+  }
+
+  // ── Preview Tabs ─────────────────────────────────────────
+  let currentTab = 'before';
+
+  function showTab(tab) {
+    currentTab = tab;
+    ['before','after','side'].forEach(t => {
+      document.getElementById('view-' + t).classList.add('hidden');
+      document.getElementById('tab-'  + t).classList.remove('active');
+    });
+    document.getElementById('view-' + tab).classList.remove('hidden');
+    document.getElementById('tab-'  + tab).classList.add('active');
+
+    if (tab === 'after') generateAfterPreview();
+    if (tab === 'side')  generateAfterPreview();
+  }
+
+  // ── Generate After Preview ───────────────────────────────
+  function generateAfterPreview() {
+    if (!RAW_DATA || RAW_DATA.length === 0) return;
+
+    // Compute averages for numeric columns
+    const avgs = {};
+    ALL_HEADERS.forEach(h => {
+      const nums = RAW_DATA
+        .map(r => parseFloat(String(r[h] ?? '').replace(/[₹,]/g,'')))
+        .filter(n => !isNaN(n));
+      if (nums.length > 0)
+        avgs[h] = (nums.reduce((a,b)=>a+b,0) / nums.length).toFixed(2);
+    });
+
+    // Compute IQR bounds for cap
+    const bounds = {};
+    ALL_HEADERS.forEach(h => {
+      const nums = RAW_DATA
+        .map(r => parseFloat(String(r[h] ?? '').replace(/[₹,]/g,'')))
+        .filter(n => !isNaN(n)).sort((a,b)=>a-b);
+      if (nums.length >= 4) {
+        const q1 = nums[Math.floor(nums.length*0.25)];
+        const q3 = nums[Math.floor(nums.length*0.75)];
+        const iqr = q3 - q1;
+        bounds[h] = { lower: q1-1.5*iqr, upper: q3+1.5*iqr };
+      }
+    });
+
+    // Build fixed data
+    const seenHashes = new Set();
+    const fixedRows  = [];
+
+    RAW_DATA.forEach((row, idx) => {
+      const issue = row['_issue'];
+      const newRow = { ...row };
+      let changed = false;
+
+      // Missing
+      if (enabledCards.missing && issue === 'missing') {
+        const opt = selectedOpts.missing;
+        if (opt === 'delete') { newRow['_skip'] = true; return; }
+        ALL_HEADERS.forEach(h => {
+          if (newRow[h] == null || newRow[h] === '') {
+            const resolvedOpt = resolveMissingStrategy(h, opt, avgs);
+            newRow[h] = resolvedOpt;
+            newRow['_fixed_' + h] = true;
+            changed = true;
+          }
+        });
+      }
+
+      // Duplicate
+      if (enabledCards.duplicate && issue === 'duplicate') {
+        const opt = selectedOpts.duplicate;
+        if (opt === 'remove') {
+          const hash = ALL_HEADERS.map(h => newRow[h]).join('|');
+          if (seenHashes.has(hash)) { newRow['_skip'] = true; return; }
+          seenHashes.add(hash);
+          changed = true;
+        }
+      }
+
+      // Outlier
+      if (enabledCards.outlier && issue === 'outlier') {
+        const opt = selectedOpts.outlier;
+        if (opt === 'remove') { newRow['_skip'] = true; return; }
+        if (opt === 'cap') {
+          ALL_HEADERS.forEach(h => {
+            const num = parseFloat(String(newRow[h] ?? '').replace(/[₹,]/g,''));
+            if (!isNaN(num) && bounds[h]) {
+              if (num < bounds[h].lower) { newRow[h] = bounds[h].lower.toFixed(2); newRow['_fixed_' + h] = true; changed = true; }
+              if (num > bounds[h].upper) { newRow[h] = bounds[h].upper.toFixed(2); newRow['_fixed_' + h] = true; changed = true; }
+            }
+          });
+        }
+      }
+
+      // Extra spaces
+      if (enabledCards.spaces && selectedOpts.spaces === 'trim') {
+        ALL_HEADERS.forEach(h => {
+          if (newRow[h] && String(newRow[h]) !== String(newRow[h]).trim()) {
+            newRow[h] = String(newRow[h]).trim();
+            newRow['_fixed_' + h] = true;
+            changed = true;
+          }
+        });
+      }
+
+      if (changed) newRow['_issue'] = null;
+      fixedRows.push(newRow);
+    });
+
+    cleanedPreviewRows = fixedRows.filter(row => !row['_skip']);
+    const html = buildPreviewTable(fixedRows, true);
+    document.getElementById('afterTableContainer').innerHTML  = html;
+
+    // Side by side
+    const beforeHtml = buildPreviewTable(RAW_DATA, false);
+    document.getElementById('sideBeforeContainer').innerHTML = beforeHtml;
+    document.getElementById('sideAfterContainer').innerHTML  = html;
+    updateDownloadPanel(false);
+  }
+
+  // ── Build preview table HTML ─────────────────────────────
+  function buildPreviewTable(rows, isAfter) {
+    const headers = ALL_HEADERS;
+    let html = `<table class="w-full text-xs">
+      <thead class="bg-slate-800 text-gray-400 uppercase tracking-wider">
+        <tr>
+          <th class="px-3 py-2 text-left">#</th>
+          ${headers.map(h => `<th class="px-3 py-2 text-left whitespace-nowrap">${h}</th>`).join('')}
+          <th class="px-3 py-2 text-left">Status</th>
+        </tr>
+      </thead><tbody>`;
+
+    let rowNum = 0;
+    rows.forEach((row, i) => {
+      if (row['_skip']) return;
+      rowNum++;
+      const issue = row['_issue'];
+      let rowClass = 'border-b border-slate-800/50 hover:bg-slate-800/30 transition ';
+      rowClass += issue === 'missing'   ? 'row-missing'   :
+                  issue === 'duplicate' ? 'row-duplicate' :
+                  issue === 'outlier'   ? 'row-outlier'   : 'row-clean';
+
+      html += `<tr class="${rowClass}">
+        <td class="px-3 py-2 text-gray-500">${rowNum}</td>`;
+
+      headers.forEach(h => {
+        const val     = row[h] ?? '—';
+        const isFixed = isAfter && row['_fixed_' + h];
+        let cellClass = 'px-3 py-2 ';
+        if (isFixed)                     cellClass += 'cell-fixed';
+        else if (row[h] == null)         cellClass += 'cell-missing';
+        else if (issue === 'duplicate')  cellClass += 'cell-duplicate';
+        else if (issue === 'outlier')    cellClass += 'cell-outlier';
+        else                             cellClass += 'text-gray-200';
+
+        html += `<td class="${cellClass}">${val}${isFixed ? ' ✓' : ''}</td>`;
+      });
+
+      const badge = !issue
+        ? `<span class="bg-emerald-900/40 text-emerald-400 px-2 py-0.5 rounded-full text-xs">✅ Fixed</span>`
+        : issue === 'missing'   ? `<span class="bg-red-900/40 text-red-400 px-2 py-0.5 rounded-full text-xs">⚠️ Missing</span>`
+        : issue === 'duplicate' ? `<span class="bg-orange-900/40 text-orange-400 px-2 py-0.5 rounded-full text-xs">🔁 Duplicate</span>`
+        : issue === 'outlier'   ? `<span class="bg-purple-900/40 text-purple-400 px-2 py-0.5 rounded-full text-xs">🔴 Outlier</span>`
+        :                         `<span class="bg-emerald-900/40 text-emerald-400 px-2 py-0.5 rounded-full text-xs">✅ Clean</span>`;
+
+      html += `<td class="px-3 py-2">${badge}</td></tr>`;
+    });
+
+    html += '</tbody></table>';
+    return html;
+  }
+
+  // ── Apply Selected ───────────────────────────────────────
+  function applySelected() {
+    const enabled = Object.keys(enabledCards).filter(k => enabledCards[k]);
+    if (enabled.length === 0) {
+      showToast('❌ Koi fix select nahi ki!', 'error');
+      return;
+    }
+    showToast(`✅ ${enabled.length} fix(es) apply ho rahi hain...`, 'success');
+    showTab('after');
+    setTimeout(() => {
+      showToast('✅ Fixes applied! Dashboard pe jao.', 'success');
+    }, 1000);
+  }
+
+  // ── Apply All ────────────────────────────────────────────
+  function applyAll() {
+    Object.keys(enabledCards).forEach(k => enabledCards[k] = true);
+    document.querySelectorAll('input[type=checkbox]')
+            .forEach(cb => cb.checked = true);
+    showToast('⚡ Saari fixes apply ho rahi hain...', 'success');
+    showTab('after');
+    setTimeout(() => {
+      showToast('✅ All fixes applied! Dashboard pe jao.', 'success');
+    }, 1000);
+  }
+
+  // ── Search + Filter ──────────────────────────────────────
+  function filterRows() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const filter = document.getElementById('issueFilter').value;
+    const rows   = document.querySelectorAll('#tableBody tr');
+
+    rows.forEach(row => {
+      const text        = row.textContent.toLowerCase();
+      const issue       = row.getAttribute('data-issue') || 'clean';
+      const matchSearch = text.includes(search);
+      const matchFilter = filter === 'all' || issue === filter;
+      row.style.display = (matchSearch && matchFilter) ? '' : 'none';
+    });
+
+    updateCount();
+  }
+
+  function updateCount() {
+    const visible = document.querySelectorAll('#tableBody tr:not([style*="none"])').length;
+    const el = document.getElementById('visibleCount');
+    if (el) el.textContent = visible;
+  }
+
+  // ── Toast ────────────────────────────────────────────────
+  function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'fixed bottom-8 right-8 z-50 px-5 py-3 rounded-xl font-medium text-sm shadow-lg toast-show ' +
+      (type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white');
+    t.classList.remove('hidden');
+    setTimeout(() => t.classList.add('hidden'), 3000);
+  }
+
+  function resolveMissingStrategy(header, fallbackOpt, avgs) {
+    const chosen = perColumnMissingOpts[header] || fallbackOpt;
+    if (chosen === 'zero') return '0';
+    if (chosen === 'unknown') return 'Unknown';
+
+    const avg = avgs[header];
+    return avg != null ? avg : 'Unknown';
+  }
+
+  function escapeJs(text) {
+    return String(text)
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, "\\'");
+  }
+</script>
+
+<script>
+  let isApplyingFixes = false;
+
+  async function persistFixes(loadingMessage, redirectToDashboard = false) {
+    if (isApplyingFixes) return;
+
+    isApplyingFixes = true;
+    showToast(loadingMessage, 'success');
+
+    try {
+      const response = await fetch('/fix/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enabledCards,
+          selectedOpts,
+          perColumnMissingOpts
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Fix apply nahi hui');
+      }
+
+      lastDownloadUrl = result.downloadUrl || '/fix/download-cleaned';
+      updateDownloadPanel(true);
+      showToast(redirectToDashboard
+        ? 'Fixes save ho gayi. Dashboard open ho raha hai...'
+        : 'Fixes save ho gayi. Excel download ready hai.', 'success');
+
+      if (redirectToDashboard) {
+        setTimeout(() => {
+          window.location.href = result.redirectUrl || '/dashboard';
+        }, 450);
+      }
+    } catch (err) {
+      showToast((err && err.message) ? err.message : 'Fix apply nahi hui', 'error');
+    } finally {
+      isApplyingFixes = false;
+    }
+  }
+
+  window.applySelected = async function () {
+    const enabled = Object.keys(enabledCards).filter(k => enabledCards[k]);
+    if (enabled.length === 0) {
+      showToast('Koi fix select nahi ki!', 'error');
+      return;
+    }
+
+    showTab('after');
+    await persistFixes(`${enabled.length} fix(es) apply ho rahi hain...`);
+  };
+
+  window.applyAll = async function () {
+    Object.keys(enabledCards).forEach(k => enabledCards[k] = true);
+    document.querySelectorAll('input[type=checkbox]')
+            .forEach(cb => cb.checked = true);
+
+    showTab('after');
+    await persistFixes('Saari fixes apply ho rahi hain...', true);
+  };
+
+  function updateDownloadPanel(isSaved) {
+    const statusEl = document.getElementById('downloadStatus');
+    const metaEl = document.getElementById('cleanedPreviewMeta');
+    const downloadBtn = document.getElementById('downloadCleanBtn');
+    const dashboardBtn = document.getElementById('openDashboardBtn');
+    const rowCount = cleanedPreviewRows.length;
+
+    if (!rowCount) {
+      statusEl.textContent = 'Preview ready nahi hai. Ek baar After Preview khol lo.';
+      metaEl.classList.add('hidden');
+      downloadBtn.classList.add('hidden');
+      dashboardBtn.classList.add('hidden');
+      return;
+    }
+
+    metaEl.textContent = `${rowCount} clean rows export ke liye ready hain`;
+    metaEl.classList.remove('hidden');
+
+    if (isSaved) {
+      statusEl.textContent = 'Clean data session me save ho gaya. Neeche se 1 click me Excel download kar lo.';
+      downloadBtn.href = lastDownloadUrl;
+      downloadBtn.classList.remove('hidden');
+      dashboardBtn.classList.remove('hidden');
+    } else {
+      statusEl.textContent = 'Ye preview clean data hai. Apply karoge to exactly yehi data save aur export hoga.';
+      downloadBtn.classList.add('hidden');
+      dashboardBtn.classList.add('hidden');
+    }
+  }
+</script>
+
+</body>
+</html>

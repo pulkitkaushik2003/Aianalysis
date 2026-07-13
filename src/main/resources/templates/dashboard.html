@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard | InsightAnalytics</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <style>
+    .row-missing   { border-left: 3px solid #EAB308; background: rgba(234,179,8,0.06); }
+    .row-duplicate { border-left: 3px solid #F97316; background: rgba(249,115,22,0.06); }
+    .row-outlier   { border-left: 3px solid #EF4444; background: rgba(239,68,68,0.06); }
+    .row-clean     { border-left: 3px solid transparent; }
+    .nav-active    { color: #38bdf8; font-weight: 600; }
+    @keyframes fadeIn {
+      from { opacity:0; transform:translateY(6px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .fade-in { animation: fadeIn 0.3s ease forwards; }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-white">
+
+<div class="flex min-h-screen">
+
+  <!-- ── SIDEBAR ──────────────────────────────────────────── -->
+  <aside class="w-64 bg-slate-900 p-6 hidden md:flex flex-col fixed h-full">
+    <h1 class="text-2xl font-bold text-sky-400 mb-10">InsightAnalytics</h1>
+
+    <ul class="space-y-2 text-gray-300 flex-1">
+      <li>
+        <a th:href="@{/}" href="/"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          🏠 Home
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/dashboard}" href="/dashboard"
+           class="nav-active flex gap-3 items-center px-3 py-2 rounded-lg bg-slate-800">
+          📊 Dashboard
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/upload}" href="/upload"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          📤 Upload Data
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/charts}" href="/charts"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          📈 Charts
+        </a>
+      </li>
+      <li>
+        <a th:href="@{/ai-analysis}" href="/ai-analysis"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          🤖 AI Analysis
+        </a>
+      </li>
+      <li>
+       <a th:href="@{/image-to-excel}" href="/image-to-excel"
+             class="nav-active flex items-center gap-3 rounded-lg bg-slate-800 px-3 py-2">
+            <i data-lucide="sheet" class="h-4 w-4"></i>
+            <span>Image to Excel</span>
+          </a>
+      </li>
+      <li>
+        <a th:href="@{/contact}" href="/contact"
+           class="flex gap-3 items-center px-3 py-2 rounded-lg hover:text-sky-400 hover:bg-slate-800 transition">
+          ✉️ Contact
+        </a>
+      </li>
+    </ul>
+
+    <div class="text-xs text-slate-500 mt-auto pt-4 border-t border-slate-800">
+      <!-- Powered by Claude AI removed -->
+      <p th:if="${fileName}" class="text-slate-400 truncate mt-1">
+        📄 <span th:text="${fileName}">data.csv</span>
+      </p>
+    </div>
+  </aside>
+
+  <!-- ── MAIN ─────────────────────────────────────────────── -->
+  <main class="flex-1 md:ml-64 p-6 md:p-10">
+
+    <!-- PAGE HEADER -->
+    <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+      <div>
+        <h2 class="text-2xl font-bold mb-2">Dashboard</h2>
+        <div class="flex flex-wrap gap-3">
+
+          <span class="bg-slate-800 text-sky-400 px-3 py-1 rounded-full text-xs">
+            📄 <span th:text="${fileName ?: 'No file'}">file.csv</span>
+          </span>
+
+          <span th:if="${detectedField}"
+                class="bg-emerald-900/40 text-emerald-400 px-3 py-1 rounded-full text-xs">
+            🏷️ <span th:text="${detectedField}">Sales Data</span> ✓
+          </span>
+
+          <span class="bg-slate-800 text-gray-400 px-3 py-1 rounded-full text-xs">
+            <span th:text="${rowCount ?: 0}">0</span> rows
+          </span>
+
+          <span class="bg-slate-800 text-gray-400 px-3 py-1 rounded-full text-xs">
+            <span th:text="${colCount ?: 0}">0</span> columns
+          </span>
+        </div>
+      </div>
+
+      <div class="flex gap-3">
+        <a th:href="@{/charts}" href="/charts"
+           class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg text-sm transition">
+          📈 Charts
+        </a>
+        <a th:href="@{/ai-analysis}" href="/ai-analysis"
+           class="flex items-center gap-2 bg-sky-500 hover:bg-sky-400 text-black px-4 py-2 rounded-lg text-sm font-semibold transition">
+          🤖 AI Analysis
+        </a>
+      </div>
+    </div>
+
+    <!-- ── NO DATA STATE ─────────────────────────────────── -->
+    <!-- Sirf message dikhao — upload button nahi -->
+    <div th:if="${data == null or #lists.isEmpty(data)}"
+         class="text-center py-24 text-gray-400 fade-in">
+      <p class="text-5xl mb-4">📂</p>
+      <p class="text-xl font-semibold mb-2">Koi data nahi mila</p>
+      <p class="text-sm text-gray-500">
+        Sidebar mein <span class="text-sky-400">"Upload Data"</span> pe jaao aur file upload karo
+      </p>
+    </div>
+
+    <!-- ── DATA STATE ────────────────────────────────────── -->
+    <div th:if="${data != null and !#lists.isEmpty(data)}" class="fade-in">
+
+      <!-- ISSUES ALERT -->
+      <div th:if="${issueCount != null and issueCount > 0}"
+           class="bg-amber-900/30 border border-amber-500/40 rounded-xl px-5 py-4 mb-6 flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <p class="font-semibold text-amber-300">
+            ⚠️ <span th:text="${issueCount}">0</span> issues found in your data
+          </p>
+          <p class="text-xs text-amber-400/70 mt-0.5">
+            Missing values, duplicates ya outliers detect hue hain
+          </p>
+        </div>
+        <a th:href="@{/fix}" href="/fix"
+           class="bg-amber-500 text-black px-4 py-2 rounded-lg text-sm font-semibold hover:bg-amber-400 transition">
+          🔧 Fix Now
+        </a>
+      </div>
+
+      <!-- STATS CARDS -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+          <p class="text-gray-400 text-xs mb-1">Total Rows</p>
+          <p class="text-2xl font-bold" th:text="${rowCount ?: 0}">0</p>
+          <p class="text-sky-400 text-xs mt-1">↑ Loaded</p>
+        </div>
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+          <p class="text-gray-400 text-xs mb-1">Clean Rows</p>
+          <p class="text-2xl font-bold text-emerald-400" th:text="${cleanRows ?: 0}">0</p>
+          <p class="text-gray-500 text-xs mt-1">No issues</p>
+        </div>
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+          <p class="text-gray-400 text-xs mb-1">Issues Found</p>
+          <p class="text-2xl font-bold text-amber-400" th:text="${issueCount ?: 0}">0</p>
+          <p class="text-gray-500 text-xs mt-1">Need fixing</p>
+        </div>
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+          <p class="text-gray-400 text-xs mb-1">Columns</p>
+          <p class="text-2xl font-bold text-sky-400" th:text="${colCount ?: 0}">0</p>
+          <p class="text-gray-500 text-xs mt-1">Detected</p>
+        </div>
+      </div>
+
+      <!-- TABLE CARD -->
+      <div class="bg-slate-900 rounded-2xl border border-slate-800">
+
+        <!-- Search + Filter + Export -->
+        <div class="p-5 border-b border-slate-800 flex flex-wrap gap-3 items-center justify-between">
+          <input type="text"
+                 id="searchInput"
+                 placeholder="🔍 Search in data..."
+                 oninput="filterTable()"
+                 class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white w-full md:w-64 focus:outline-none focus:border-sky-400 placeholder-gray-500">
+
+          <div class="flex gap-3 flex-wrap">
+            <select id="issueFilter"
+                    onchange="filterTable()"
+                    class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-sky-400">
+              <option value="all">All Rows</option>
+              <option value="clean">✅ Clean</option>
+              <option value="missing">⚠️ Missing</option>
+              <option value="duplicate">🔁 Duplicate</option>
+              <option value="outlier">🔴 Outlier</option>
+            </select>
+
+            <button onclick="exportCSV()"
+                    class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-2 rounded-lg text-sm transition">
+              ⬇️ Export CSV
+            </button>
+          </div>
+        </div>
+
+        <!-- TABLE — 100% Thymeleaf dynamic -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm" id="dataTable">
+            <thead class="bg-slate-800 text-gray-400 text-xs uppercase tracking-wider">
+              <tr>
+                <th class="px-4 py-3 text-left w-10">#</th>
+                <th th:each="header, hStat : ${headers}"
+                    th:text="${header}"
+                    th:onclick="'sortTable(' + ${hStat.index + 1} + ')'"
+                    class="px-4 py-3 text-left cursor-pointer hover:text-sky-400 transition select-none">
+                </th>
+                <th class="px-4 py-3 text-left">Status</th>
+              </tr>
+            </thead>
+
+            <tbody id="tableBody">
+              <tr th:each="row, iterStat : ${data}"
+                  th:classappend="${row.get('_issue') == 'missing'}   ? 'row-missing'   :
+                                  (${row.get('_issue') == 'duplicate'} ? 'row-duplicate' :
+                                  (${row.get('_issue') == 'outlier'}   ? 'row-outlier'   : 'row-clean'))"
+                  th:attr="data-issue=${row.get('_issue') ?: 'clean'}"
+                  class="border-b border-slate-800/50 hover:bg-slate-800/40 transition">
+
+                <td class="px-4 py-3 text-gray-500 text-xs"
+                    th:text="${iterStat.index + 1}">1</td>
+
+                <td th:each="header : ${headers}"
+                    th:text="${row.get(header) != null ? row.get(header) : '—'}"
+                    th:classappend="${row.get(header) == null} ? 'text-amber-400 italic' : 'text-gray-200'"
+                    class="px-4 py-3">
+                </td>
+
+                <td class="px-4 py-3">
+                  <span th:switch="${row.get('_issue')}">
+                    <span th:case="'missing'"
+                          class="bg-amber-900/40 text-amber-400 text-xs px-2 py-0.5 rounded-full">
+                      ⚠️ Missing
+                    </span>
+                    <span th:case="'duplicate'"
+                          class="bg-orange-900/40 text-orange-400 text-xs px-2 py-0.5 rounded-full">
+                      🔁 Duplicate
+                    </span>
+                    <span th:case="'outlier'"
+                          class="bg-red-900/40 text-red-400 text-xs px-2 py-0.5 rounded-full">
+                      🔴 Outlier
+                    </span>
+                    <span th:case="*"
+                          class="bg-emerald-900/40 text-emerald-400 text-xs px-2 py-0.5 rounded-full">
+                      ✅ Clean
+                    </span>
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- PAGINATION -->
+        <div class="px-5 py-4 border-t border-slate-800 flex items-center justify-between flex-wrap gap-4">
+
+          <p class="text-gray-400 text-sm">
+            Showing
+            <span class="text-white font-medium"
+                  th:text="${(currentPage - 1) * pageSize + 1} + ' - ' + ${#lists.size(data)}">
+              1-50
+            </span>
+            of
+            <span class="text-white font-medium" th:text="${rowCount ?: 0}">0</span>
+            rows
+          </p>
+
+          <div class="flex items-center gap-1 flex-wrap">
+            <a th:if="${currentPage > 1}"
+               th:href="@{/dashboard(page=${currentPage - 1}, size=${pageSize})}"
+               class="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-sm transition">
+              ← Prev
+            </a>
+            <span th:unless="${currentPage > 1}"
+                  class="bg-slate-800/40 text-gray-600 px-3 py-1.5 rounded-lg text-sm cursor-not-allowed">
+              ← Prev
+            </span>
+
+            <a th:if="${totalPages > 1}"
+               th:href="@{/dashboard(page=1, size=${pageSize})}"
+               th:classappend="${currentPage == 1} ? 'bg-sky-500 text-black font-bold' : 'bg-slate-800 hover:bg-slate-700 text-white'"
+               class="w-8 h-8 flex items-center justify-center rounded-lg text-sm transition">
+              1
+            </a>
+
+            <span th:if="${currentPage > 4}"
+                  class="px-2 text-gray-500 text-sm">
+              ...
+            </span>
+
+            <span th:each="i : ${#numbers.sequence(totalPages > 1 ? (currentPage > 3 ? currentPage - 2 : 2) : 1, totalPages > 1 ? (currentPage < totalPages - 2 ? currentPage + 2 : totalPages - 1) : 1)}">
+              <a th:if="${i > 1 and i < totalPages}"
+                 th:href="@{/dashboard(page=${i}, size=${pageSize})}"
+                 th:text="${i}"
+                 th:classappend="${i == currentPage} ? 'bg-sky-500 text-black font-bold' : 'bg-slate-800 hover:bg-slate-700 text-white'"
+                 class="w-8 h-8 flex items-center justify-center rounded-lg text-sm transition">
+              </a>
+            </span>
+
+            <span th:if="${currentPage < totalPages - 3}"
+                  class="px-2 text-gray-500 text-sm">
+              ...
+            </span>
+
+            <a th:if="${totalPages > 1}"
+               th:href="@{/dashboard(page=${totalPages}, size=${pageSize})}"
+               th:classappend="${currentPage == totalPages} ? 'bg-sky-500 text-black font-bold' : 'bg-slate-800 hover:bg-slate-700 text-white'"
+               class="w-8 h-8 flex items-center justify-center rounded-lg text-sm transition">
+              <span th:text="${totalPages}">1</span>
+            </a>
+
+            <!-- Old full list removed -->
+            <span th:remove="all">
+              <a th:href="@{/dashboard(page=${i}, size=${pageSize})}"
+                 th:text="${i}"
+                 th:classappend="${i == currentPage} ? 'bg-sky-500 text-black font-bold' : 'bg-slate-800 hover:bg-slate-700 text-white'"
+                 class="w-8 h-8 flex items-center justify-center rounded-lg text-sm transition">
+              </a>
+            </span>
+
+            <a th:if="${currentPage < totalPages}"
+               th:href="@{/dashboard(page=${currentPage + 1}, size=${pageSize})}"
+               class="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-sm transition">
+              Next →
+            </a>
+            <span th:unless="${currentPage < totalPages}"
+                  class="bg-slate-800/40 text-gray-600 px-3 py-1.5 rounded-lg text-sm cursor-not-allowed">
+              Next →
+            </span>
+          </div>
+
+          <form th:action="@{/dashboard}" method="get" class="flex items-center gap-2">
+            <input type="hidden" name="page" value="1">
+            <select name="size"
+                    onchange="this.form.submit()"
+                    class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-sky-400">
+              <option th:value="10"  th:selected="${pageSize == 10}">10 rows</option>
+              <option th:value="25"  th:selected="${pageSize == 25}">25 rows</option>
+              <option th:value="50"  th:selected="${pageSize == 50}">50 rows</option>
+              <option th:value="100" th:selected="${pageSize == 100}">100 rows</option>
+            </select>
+          </form>
+        </div>
+      </div>
+
+      <!-- LEGEND -->
+      <div class="mt-4 flex flex-wrap gap-4 text-xs text-gray-400">
+        <span class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span> Clean
+        </span>
+        <span class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span> Missing value
+        </span>
+        <span class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-orange-400 inline-block"></span> Duplicate
+        </span>
+        <span class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-red-400 inline-block"></span> Outlier
+        </span>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  lucide.createIcons();
+
+  // ── Search + Filter ──────────────────────────────────────
+  function filterTable() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const filter = document.getElementById('issueFilter').value;
+    const rows   = document.querySelectorAll('#tableBody tr');
+
+    rows.forEach(row => {
+      const text        = row.textContent.toLowerCase();
+      const issue       = row.getAttribute('data-issue') || 'clean';
+      const matchSearch = text.includes(search);
+      const matchFilter = filter === 'all' || issue === filter;
+      row.style.display = (matchSearch && matchFilter) ? '' : 'none';
+    });
+  }
+
+  // ── Sort ─────────────────────────────────────────────────
+  let sortDir = {};
+  function sortTable(colIndex) {
+    const tbody = document.getElementById('tableBody');
+    const rows  = Array.from(tbody.querySelectorAll('tr'));
+    sortDir[colIndex] = !sortDir[colIndex];
+    const dir = sortDir[colIndex] ? 1 : -1;
+
+    rows.sort((a, b) => {
+      const aVal = a.cells[colIndex]?.textContent.trim() || '';
+      const bVal = b.cells[colIndex]?.textContent.trim() || '';
+      const aNum = parseFloat(aVal.replace(/[₹,\s]/g, ''));
+      const bNum = parseFloat(bVal.replace(/[₹,\s]/g, ''));
+      if (!isNaN(aNum) && !isNaN(bNum)) return (aNum - bNum) * dir;
+      return aVal.localeCompare(bVal) * dir;
+    });
+
+    rows.forEach(row => tbody.appendChild(row));
+  }
+
+  // ── Export CSV ───────────────────────────────────────────
+  function exportCSV() {
+    const headers = Array.from(document.querySelectorAll('#dataTable thead th'))
+                         .map(th => '"' + th.textContent.trim() + '"')
+                         .join(',');
+    let csv = headers + '\n';
+
+    document.querySelectorAll('#tableBody tr').forEach(row => {
+      if (row.style.display === 'none') return;
+      const cells = Array.from(row.cells)
+                         .map(c => '"' + c.textContent.trim().replace(/"/g, '""') + '"')
+                         .join(',');
+      csv += cells + '\n';
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = 'data_export.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+</script>
+
+</body>
+</html>
+
